@@ -140,6 +140,7 @@ class AudiobookshelfAction(InterfaceAction):
 
     def scheduled_sync(self):
         def scheduledTask():
+            QTimer.singleShot(24 * 3600 * 1000, scheduledTask)
             self.sync_from_audiobookshelf(silent = True if not DEBUG else False)
         def main():
             currentTime = QTime.currentTime()
@@ -148,7 +149,6 @@ class AudiobookshelfAction(InterfaceAction):
             if timeDiff < 0:
                 timeDiff += 86400000
             QTimer.singleShot(timeDiff, scheduledTask)
-            QTimer.singleShot(24 * 3600 * 1000, scheduledTask)
         main()
 
     def update_metadata(self, book_uuid, keys_values_to_update):
@@ -392,7 +392,6 @@ class AudiobookshelfAction(InterfaceAction):
             show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
             return
 
-        # Rest of the existing code...
         if isinstance(items_data, dict) and "results" in items_data:
             items_list = items_data["results"]
         elif isinstance(items_data, list):
@@ -495,6 +494,7 @@ class SyncCompletionDialog(QDialog):
         ok_button.setFixedWidth(200)
         ok_button.setIcon(QIcon.ic('ok.png'))
         ok_button.clicked.connect(self.accept)
+        ok_button.setDefault(True)
         bottomButtonLayout.addWidget(ok_button)
         layout.addLayout(bottomButtonLayout)
     
@@ -635,7 +635,6 @@ class LinkDialog(QDialog):
 
         self.table.selectRow(0)
         self.table.resizeColumnsToContents()
-        # Set width for both columns to 300
         self.table.setColumnWidth(0, 300)
         self.table.setColumnWidth(1, 300)
         self.table.setColumnWidth(2, 100)
@@ -654,6 +653,7 @@ class LinkDialog(QDialog):
         link_btn.setFixedWidth(200)
         link_btn.setIcon(QIcon.ic('insert-link.png'))
         link_btn.clicked.connect(self.link)
+        link_btn.setDefault(True)
         bottomButtonLayout.addWidget(link_btn)
         layout.addLayout(bottomButtonLayout)
 

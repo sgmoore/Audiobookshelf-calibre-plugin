@@ -1,4 +1,4 @@
 [*][URL="https://www.mobileread.com/forums/showthread.php?p=4489158"]Audiobookshelf Sync[/URL]
 [I]Synchronize metadata (e.g. read progress and rating) from Audiobookshelf to calibre.
-Version: 1.0.0; Calibre: 5.0.1; Author: jbhul; History: Yes;
+Version: 1.0.1; Calibre: 5.0.1; Author: jbhul; History: Yes;
 Platforms: Windows, OSX, Linux;[/I]

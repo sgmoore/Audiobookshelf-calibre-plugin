@@ -283,7 +283,6 @@ class ConfigWidget(QWidget):
         layout.addLayout(title_layout)
 
         # Sync Section
-        layout.addWidget(self.create_separator())
         ps_header_label = QLabel(
             "This plugin allows calibre to pull metadata from Audiobookshelfs built-in API.\n"
             "You must link the audiobook using either Quick Link (automatic by ASIN or ISBN) "
@@ -316,6 +315,7 @@ class ConfigWidget(QWidget):
         layout.addLayout(scheduled_sync_layout)
 
         # Add custom column dropdowns
+        layout.addWidget(self.create_separator())
         self._get_create_new_custom_column_instance = None
         self.sync_custom_columns = {}
         bottom_options_layout = QHBoxLayout()
@@ -520,6 +520,14 @@ class ABSAccountPopup(QDialog):
         CONFIG['abs_url'] = self.url_input.text()
         CONFIG['abs_key'] = self.key_input.text()
         CONFIG['abs_library_id'] = self.lib_id_input.text()
+        try:
+            from calibre.ebooks.metadata.sources.prefs import msprefs
+            id_link_rules = msprefs['id_link_rules']
+            id_link_rules['audiobookshelf_id'] = [['Audiobookshelf', f'{self.url_input.text()}/audiobookshelf/item/{{id}}']]
+            msprefs['id_link_rules'] = id_link_rules
+        except ImportError:
+            print('Could not add identifer link rule')        
+        
         self.accept()
 
 
