@@ -70,6 +70,7 @@ class AudiobookshelfAction(InterfaceAction):
         self.qaction.triggered.connect(self.sync_from_audiobookshelf)
         # Right-click menu (already includes left-click action)
         menu = self.qaction.menu()
+        menu.addSeparator()
         self.create_menu_action(
             menu,
             'Link Audiobookshelf Book',
@@ -85,6 +86,15 @@ class AudiobookshelfAction(InterfaceAction):
             icon='wizard.png',
             triggered=self.quick_link_books,
             description=''
+        )
+        menu.addSeparator()
+        self.create_menu_action(
+            menu,
+            'Audiobooks Not In Calibre',
+            'Audiobooks Not In Calibre',
+            icon='format-list-ordered.png',
+            triggered=self.show_not_in_calibre,
+            description='List of Audiobooks Not In Calibre'
         )
         menu.addSeparator()
         self.create_menu_action(
@@ -137,6 +147,62 @@ class AudiobookshelfAction(InterfaceAction):
             parent=None,
         )
         return about_dialog.exec_()
+
+    def show_not_in_calibre(self):
+        # Get ABS credentials and verify
+        api_key = CONFIG.get('abs_key', '')
+        library_id = CONFIG.get('abs_library_id', '')
+        if not api_key or not library_id:
+            show_error(self.gui, "Configuration Error", "API Key or Library ID not set in configuration.")
+            return
+
+        # Get ABS library items
+        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
+        items_url = f"{server_url}/api/libraries/{library_id}/items"
+        items_data = self.api_request(items_url, api_key)
+        
+        if items_data is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf items.")
+            return
+
+        # Extract items list
+        if isinstance(items_data, dict) and "results" in items_data:
+            abs_items = items_data["results"]
+        elif isinstance(items_data, list):
+            abs_items = items_data
+        else:
+            abs_items = []
+
+        # Get all linked ABS IDs from Calibre
+        db = self.gui.current_db.new_api
+        all_book_ids = db.search('')
+        linked_abs_ids = set()
+        
+        for book_id in all_book_ids:
+            metadata = db.get_metadata(book_id)
+            identifiers = metadata.get('identifiers', {})
+            if 'audiobookshelf_id' in identifiers:
+                linked_abs_ids.add(identifiers['audiobookshelf_id'])
+
+        # Filter and sort unlinked items
+        unlinked_items = []
+        for item in abs_items:
+            if item.get('id') not in linked_abs_ids:
+                metadata = item.get('media', {}).get('metadata', {})
+                title = metadata.get('title', '')
+                author = metadata.get('authorName', '')
+                if title:  # Only include items with titles
+                    unlinked_items.append({
+                        'title': title,
+                        'author': author
+                    })
+
+        # Sort by title
+        unlinked_items.sort(key=lambda x: x['title'].lower())
+
+        # Show results
+        message = f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library"
+        SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, type="info").exec_()
 
     def scheduled_sync(self):
         def scheduledTask():
@@ -514,7 +580,8 @@ class SyncCompletionDialog(QDialog):
             headers.append('linked')
         if 'skipped' in all_headers:
             headers.append('skipped')
-        headers.append('error')
+        if 'error' in all_headers:
+            headers.append('error')
 
         table = QTableWidget()
         table.setRowCount(len(results))
@@ -633,7 +700,6 @@ class LinkDialog(QDialog):
                 status_item.setIcon(checkmark_icon)
             self.table.setItem(i, 2, status_item)
 
-        self.table.selectRow(0)
         self.table.resizeColumnsToContents()
         self.table.setColumnWidth(0, 300)
         self.table.setColumnWidth(1, 300)
