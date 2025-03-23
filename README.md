@@ -32,7 +32,7 @@ the **create new columns** option in the config dropdowns.
 1. Right click the Audiobookshelf icon and click configure
 2. Click "Add Audiobookshelf Account" and enter your Audiobookshelf server details:
    - Server URL (default: http://localhost:13378)
-   - API Key
+   - [API Key](https://api.audiobookshelf.org/#introduction:~:text=You%20can%20find%20your%20API%20token%20by%20logging%20into%20the%20Audiobookshelf%20web%20app%20as%20an%20admin%2C%20go%20to%20the%20config%20%E2%86%92%20users%20page%2C%20and%20click%20on%20your%20account.)
    - Optionally set up scheduled sync
 3. Configure columns and scheduled sync settings
 
@@ -64,21 +64,27 @@ the **create new columns** option in the config dropdowns.
 
 1. Click the Audiobookshelf icon or right-click and select "Sync from Audiobookshelf"
 
-### Quick Link Books
+#### Scheduled Sync
 
-1. Right-click the Audiobookshelf icon and select "Quick Link Books"
-2. Books will be automatically linked based on ISBN/ASIN matches
+Enable scheduled sync in the plugin configuration to automatically sync metadata at a specified time once a day.
 
-### Manual Linking
+### Linking Books
 
 1. Select books in your Calibre library
 2. Right-click the Audiobookshelf icon and select "Link Audiobookshelf Book"
 3. Select the matching book from your Audiobookshelf library
    Matched titles/authors will be highlighted and shown at the top for easier identification, a reading progress indicator will show which books you've started.
 
-### Scheduled Sync
+#### Quick Link Books
 
-Enable scheduled sync in the plugin configuration to automatically sync metadata at a specified time once a day.
+Quick Linking attempts to match up books by ISBN and ASIN (Audible ASIN). NGL doesn't work well, if there are suggestions on how to improve this I'm all ears.
+
+1. Right-click the Audiobookshelf icon and select "Quick Link Books"
+2. Books will be automatically linked based on ISBN/ASIN matches
+
+### Audiobooks Not in Calibre
+
+Builds a table of audiobooks in Audiobookshelf that aren't linked to a book in calibre.
 
 ## Support
 
