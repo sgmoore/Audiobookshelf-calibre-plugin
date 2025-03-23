@@ -33,7 +33,6 @@ the **create new columns** option in the config dropdowns.
 2. Click "Add Audiobookshelf Account" and enter your Audiobookshelf server details:
    - Server URL (default: http://localhost:13378)
    - API Key
-   - Library ID
    - Optionally set up scheduled sync
 3. Configure columns and scheduled sync settings
 

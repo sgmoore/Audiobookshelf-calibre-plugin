@@ -149,20 +149,8 @@ class AudiobookshelfAction(InterfaceAction):
         return about_dialog.exec_()
 
     def show_not_in_calibre(self):
-        # Get ABS credentials and verify
-        api_key = CONFIG.get('abs_key', '')
-        library_id = CONFIG.get('abs_library_id', '')
-        if not api_key or not library_id:
-            show_error(self.gui, "Configuration Error", "API Key or Library ID not set in configuration.")
-            return
-
-        # Get ABS library items
-        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
-        items_url = f"{server_url}/api/libraries/{library_id}/items"
-        items_data = self.api_request(items_url, api_key)
-        
+        items_data = self.get_abs_library_items()
         if items_data is None:
-            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf items.")
             return
 
         # Extract items list
@@ -260,21 +248,18 @@ class AudiobookshelfAction(InterfaceAction):
             return None
 
     def sync_from_audiobookshelf(self, silent=False):
-        api_key = CONFIG.get('abs_key', '')
-        library_id = CONFIG.get('abs_library_id', '')
-        if not api_key or not library_id:
-            show_error(self.gui, "Configuration Error", "API Key or Library ID not set in configuration.")
+        items_data = self.get_abs_library_items()
+        if items_data is None:
             return
 
+        # Get me data
         server_url = CONFIG.get('abs_url', 'http://localhost:13378')
-        items_url = f"{server_url}/api/libraries/{library_id}/items"
+        api_key = CONFIG.get('abs_key', '')
         me_url = f"{server_url}/api/me"
-
-        items_data = self.api_request(items_url, api_key)
         me_data = self.api_request(me_url, api_key)
 
-        if items_data is None or me_data is None:
-            show_error(self.gui, "API Error", "Failed to retrieve data from Audiobookshelf API.")
+        if me_data is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
             return
 
         # If items_data is a dict with "results", use that list
@@ -370,17 +355,10 @@ class AudiobookshelfAction(InterfaceAction):
             SyncCompletionDialog(self.gui, "Sync Completed", message, results, type="info").exec_()
 
     def quick_link_books(self):
-        api_key = CONFIG.get('abs_key', '')
-        library_id = CONFIG.get('abs_library_id', '')
-        if not api_key or not library_id:
-            show_error(self.gui, "Configuration Error", "API Key or Library ID not set in configuration.")
-            return
-        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
-        items_url = f"{server_url}/api/libraries/{library_id}/items"
-        items_data = self.api_request(items_url, api_key)
+        items_data = self.get_abs_library_items()
         if items_data is None:
-            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf items.")
             return
+
         if isinstance(items_data, dict) and "results" in items_data:
             abs_items = items_data["results"]
         elif isinstance(items_data, list):
@@ -436,23 +414,15 @@ class AudiobookshelfAction(InterfaceAction):
         SyncCompletionDialog(self.gui, "Quick Link Results", message, results, type="info").exec_()
 
     def link_audiobookshelf_book(self):
-        api_key = CONFIG.get('abs_key', '')
-        library_id = CONFIG.get('abs_library_id', '')
-        if not api_key or not library_id:
-            show_error(self.gui, "Configuration Error", "API Key or Library ID not set in configuration.")
-            return
-
-        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
-        items_url = f"{server_url}/api/libraries/{library_id}/items"
-        me_url = f"{server_url}/api/me"  # Add /me endpoint URL
-
-        # Get both items and me data
-        items_data = self.api_request(items_url, api_key)
-        me_data = self.api_request(me_url, api_key)  # Get user data including reading progress
-
+        items_data = self.get_abs_library_items()
         if items_data is None:
-            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf items.")
             return
+
+        # Get me data
+        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
+        api_key = CONFIG.get('abs_key', '')
+        me_url = f"{server_url}/api/me"
+        me_data = self.api_request(me_url, api_key)
 
         if me_data is None:
             show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
@@ -510,6 +480,51 @@ class AudiobookshelfAction(InterfaceAction):
                 })
         message = (f"Link Audiobookshelf Book completed.\nBooks linked: {summary['linked']}\nBooks skipped: {summary['skipped']}")
         SyncCompletionDialog(self.gui, "Link Results", message, summary['details'], type="info").exec_()
+
+    def get_abs_library_items(self):
+        """Get all items from all Audiobookshelf libraries."""
+        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
+        api_key = CONFIG.get('abs_key', '')
+        
+        if not api_key:
+            show_error(self.gui, "Configuration Error", "API Key not set in configuration.")
+            return None
+
+        # Get list of libraries
+        libraries_url = f"{server_url}/api/libraries"
+        libraries_response = self.api_request(libraries_url, api_key)
+        
+        if libraries_response is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf libraries.")
+            return None
+
+        # Extract libraries list from response
+        libraries_data = libraries_response.get('libraries', [])
+        
+        # Build complete items list from all libraries
+        all_items = []
+        for library in libraries_data:
+            library_id = library.get('id')
+            if not library_id:
+                continue
+                
+            items_url = f"{server_url}/api/libraries/{library_id}/items"
+            items_data = self.api_request(items_url, api_key)
+            
+            if items_data is None:
+                continue
+                
+            # Extract items from response
+            if isinstance(items_data, dict) and "results" in items_data:
+                items_list = items_data["results"]
+            elif isinstance(items_data, list):
+                items_list = items_data
+            else:
+                items_list = []
+                
+            all_items.extend(items_list)
+        
+        return all_items if all_items else None
 
 
 class SyncCompletionDialog(QDialog):

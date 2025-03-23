@@ -252,7 +252,6 @@ for config_name in CHECKBOXES:
 # Set other defaults
 CONFIG.defaults['abs_url'] = 'http://localhost:13378'
 CONFIG.defaults['abs_key'] = ''
-CONFIG.defaults['abs_library_id'] = ''
 CONFIG.defaults['scheduleSyncHour'] = 4
 CONFIG.defaults['scheduleSyncMinute'] = 0
 
@@ -488,7 +487,7 @@ class ABSAccountPopup(QDialog):
         self.note_label = QLabel(
             'Enter your Audiobookshelf server URL, if it''s the same device as '
             'calibre you can leave the default filled in.\n'
-            'Enter your API Key and Library ID. Then click Save Account.',
+            'Enter your Audiobookshelf API Key and click Save Account.',
             self
         )
         self.note_label.setWordWrap(True)
@@ -506,12 +505,6 @@ class ABSAccountPopup(QDialog):
         layout.addWidget(self.key_label)
         layout.addWidget(self.key_input)
 
-        self.lib_id_label = QLabel('Library ID:', self)
-        self.lib_id_input = QLineEdit(self)
-        self.lib_id_input.setText(CONFIG['abs_library_id'])
-        layout.addWidget(self.lib_id_label)
-        layout.addWidget(self.lib_id_input)
-
         self.login_button = QPushButton('Save Account', self)
         self.login_button.clicked.connect(self.save_audiobookshelf_account_settings)
         layout.addWidget(self.login_button)
@@ -519,7 +512,6 @@ class ABSAccountPopup(QDialog):
     def save_audiobookshelf_account_settings(self):
         CONFIG['abs_url'] = self.url_input.text()
         CONFIG['abs_key'] = self.key_input.text()
-        CONFIG['abs_library_id'] = self.lib_id_input.text()
         try:
             from calibre.ebooks.metadata.sources.prefs import msprefs
             id_link_rules = msprefs['id_link_rules']
