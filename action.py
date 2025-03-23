@@ -507,6 +507,8 @@ class AudiobookshelfAction(InterfaceAction):
             library_id = library.get('id')
             if not library_id:
                 continue
+            if library.get('mediaType') != 'book':
+                continue  # Skip non-audiobook libraries
                 
             items_url = f"{server_url}/api/libraries/{library_id}/items"
             items_data = self.api_request(items_url, api_key)
