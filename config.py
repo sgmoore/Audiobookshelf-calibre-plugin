@@ -40,6 +40,8 @@ Each entry is keyed by the name of the config item used to store the selected co
   column_heading: Default custom column heading
   datatype: Default custom column datatype
   is_multiple (optional): only for text columns, whether to allow multiple values (tags).
+  additional_params (optional): additional parameters for the custom column display parameter as specified in the calibre API as a dictionary.
+    https://github.com/kovidgoyal/calibre/blob/bc29562c0c8534b349c9d330ac9aec72eef2be99/src/calibre/gui2/preferences/create_custom_column.py#L901
   description: Default custom column description
   default_lookup_name: Name of the config item to store the selected column
   config_label: Label for the item in the Config UI
@@ -86,12 +88,15 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audiobook_narrator': {
         'column_heading': _("Audiobook Narrator"),
         'datatype': 'text',
+        'is_multiple': True,
+        'additional_params': {'is_names': True},
         'description': _("Narrator name(s)"),
         'default_lookup_name': '#abs_narrator',
         'config_label': _('Audiobook Narrator:'),
         'config_tool_tip': _('A "Text" column to store the narrator name from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'narratorName'],
+        'transform': (lambda value: [narrator.strip() for narrator in value.split(',')]),
     },
     'column_audiobook_publisher': {
         'column_heading': _("Audiobook Publisher"),
@@ -401,7 +406,8 @@ class ConfigWidget(QWidget):
             
         column_meta = CUSTOM_COLUMN_DEFAULTS[lookup_name]
         display_params = {
-            'description': column_meta['description']
+            'description': column_meta['description'],
+            **column_meta.get('additional_params', {})
         }
         datatype = column_meta['datatype']
         column_heading = column_meta['column_heading']
