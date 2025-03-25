@@ -333,6 +333,18 @@ class AudiobookshelfAction(InterfaceAction):
                         value = col_meta['transform'](value)
                     if value is not None:
                         old_value = metadata.get(column_name)
+                        if type(old_value) != type(value):
+                            # Convert value to the same type as old_value
+                            if isinstance(old_value, str) and isinstance(value, list):
+                                value = ', '.join(value)
+                            elif isinstance(old_value, bool):
+                                value = bool(value)
+                            elif isinstance(old_value, int):
+                                value = int(value)
+                            elif isinstance(old_value, float):
+                                value = float(value)
+                            else: # Default to string
+                                value = str(value)
                         if old_value != value:
                             keys_values_to_update[column_name] = value
                             # Only add to result if there's an actual change

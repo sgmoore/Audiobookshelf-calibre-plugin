@@ -334,7 +334,7 @@ class ConfigWidget(QWidget):
 
         for config_name, metadata in CUSTOM_COLUMN_DEFAULTS.items():
             self.sync_custom_columns[config_name] = {
-                'current_columns': self.get_custom_columns(config_name)
+                'current_columns': self.get_custom_columns(metadata['datatype'])
             }
             self._column_combo = self.create_custom_column_controls(
                 columns_group_box_layout2, 
@@ -453,16 +453,15 @@ class ConfigWidget(QWidget):
             self._get_create_new_custom_column_instance = CreateNewCustomColumn(self.action.gui)
         return self._get_create_new_custom_column_instance
 
-    def get_custom_columns(self, config_name):
+    def get_custom_columns(self, datatype):
         if SUPPORTS_CREATE_CUSTOM_COLUMN:
             custom_columns = self.get_create_new_custom_column_instance.current_columns()
         else:
             custom_columns = self.action.gui.library_view.model().custom_columns
         available_columns = {}
-        datatype = CUSTOM_COLUMN_DEFAULTS[config_name]['datatype']
-        is_multiple = CUSTOM_COLUMN_DEFAULTS[config_name].get('is_multiple', False)
         for key, column in custom_columns.items():
-            if column['datatype'] == datatype and (not is_multiple or column['is_multiple'] != {}):
+            typ = column['datatype']
+            if typ == datatype:
                 available_columns[key] = column
         if datatype == 'rating':  # Add rating column if requested
             ratings_column_name = self.action.gui.library_view.model().orig_headers['rating']
