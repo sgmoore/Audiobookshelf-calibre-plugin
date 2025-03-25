@@ -10,7 +10,6 @@ from PyQt5.Qt import (
     QIcon,
     QPushButton,
     QLabel,
-    QFont,
     QHBoxLayout,
     QVBoxLayout,
     QTableWidget,
@@ -639,6 +638,7 @@ class LinkDialog(QDialog):
         self.selected_item = None
         self.items = items
         self.calibre_metadata = calibre_metadata
+
         layout = QVBoxLayout(self)
         top_label = QLabel("Select the Audiobookshelf book to link:")
         layout.addWidget(top_label)
@@ -651,16 +651,16 @@ class LinkDialog(QDialog):
                 calibre_authors = ", ".join(calibre_authors)
             else:
                 calibre_authors = calibre_authors or "Unknown Author"
-            bottom_label_text = f"{calibre_title} by {calibre_authors}"
+            book_label_text = f'<b>{calibre_title}</b> by <i><b>{calibre_authors}</b></i>'
         else:
-            bottom_label_text = ''
-        bottom_label = QLabel(bottom_label_text)
-        bold = QFont()
-        bold.setBold(True)
-        bottom_label.setFont(bold)
-        bottom_label.setWordWrap(True)
-        layout.addWidget(bottom_label)
-        # Only two columns: Title and Author
+            book_label_text = ''
+        book_label = QLabel(book_label_text)
+        book_label.setWordWrap(True)
+        layout.addWidget(book_label)
+        if calibre_metadata.get('identifiers', {}).get('audiobookshelf_id') is not None:
+            already_linked_label = QLabel(f'<span style="color:red">This book is already linked to an Audiobookshelf item.</span>')
+            layout.addWidget(already_linked_label)
+
         self.table = QTableWidget(len(items), 3)
         self.table.setHorizontalHeaderLabels(["Title", "Author", "Reading/Read"])
         
