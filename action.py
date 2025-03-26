@@ -307,6 +307,14 @@ class AudiobookshelfAction(InterfaceAction):
 
             result = {'title': metadata.get('title', f'Book {book_id}')}
             keys_values_to_update = {}
+
+            # Update identifiers if Audible ASIN sync is enabled
+            if CONFIG.get('checkbox_enable_Audible_ASIN_sync', False):
+                current_Audible_ASIN = identifiers.get('audible')
+                Audible_ASIN = item_data.get('media').get('metadata').get('asin')
+                if Audible_ASIN != current_Audible_ASIN:
+                    identifiers['audible'] = Audible_ASIN
+                    keys_values_to_update['identifiers'] = identifiers
             
             # For each custom column, use api_source and data_location for lookup
             for config_name, col_meta in COLUMNS.items():
@@ -399,11 +407,17 @@ class AudiobookshelfAction(InterfaceAction):
                 continue  # already linked
             book_isbn = identifiers.get('isbn')
             book_asin = identifiers.get('asin')
+            audible_asin = identifiers.get('audible')
+            amazon_asin = identifiers.get('amazon')
             matched_item = None
             if book_isbn and book_isbn in isbn_index and len(isbn_index[book_isbn]) == 1:
                 matched_item = isbn_index[book_isbn][0]
             elif book_asin and book_asin in asin_index and len(asin_index[book_asin]) == 1:
                 matched_item = asin_index[book_asin][0]
+            elif audible_asin and audible_asin in asin_index and len(asin_index[audible_asin]) == 1:
+                matched_item = asin_index[audible_asin][0]
+            elif amazon_asin and amazon_asin in asin_index and len(asin_index[amazon_asin]) == 1:
+                matched_item = asin_index[amazon_asin][0]
             if matched_item:
                 abs_id = matched_item.get('id')
                 abs_title = matched_item.get('media', {}).get('metadata', {}).get('title', 'Unknown Title')
@@ -467,6 +481,9 @@ class AudiobookshelfAction(InterfaceAction):
                     abs_title = selected_item.get('media', {}).get('metadata', {}).get('title', 'Unknown Title')
                     identifiers = metadata.get('identifiers', {})
                     identifiers['audiobookshelf_id'] = abs_id
+                    if CONFIG.get('checkbox_enable_Audible_ASIN_sync', False):
+                        Audible_ASIN = selected_item.get('media').get('metadata').get('asin')
+                        identifiers['audible'] = Audible_ASIN
                     metadata.set('identifiers', identifiers)
                     self.gui.current_db.new_api.set_metadata(book_id, metadata, set_title=False, set_authors=False)
                     summary['linked'] += 1

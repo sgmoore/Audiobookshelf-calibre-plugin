@@ -54,9 +54,6 @@ Each entry is keyed by the name of the config item used to store the selected co
   last_in_group (optional): if present and true, a separator will be added after this item in the Config UI.
 '''
 CUSTOM_COLUMN_DEFAULTS = {
-    },
-    'column_audiobook_duration': {
-        'column_heading': _("Audiobook Duration"),
     'column_audiobook_title': {
         'column_heading': _("Audiobook Title"),
         'datatype': 'text',
@@ -338,6 +335,10 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
         'config_label': 'Enable Daily Sync',
         'config_tool_tip': 'Enable daily sync of metadata using Audiobookshelf\'s API.',
     },
+    'checkbox_enable_Audible_ASIN_sync': {
+        'config_label': 'Enable Audible ASIN Sync',
+        'config_tool_tip': 'Enable sync of the Audible identifier and Audible link.',
+    },
 }
 
 CONFIG = JSONConfig(os.path.join('plugins', 'Audiobookshelf Sync.json'))
@@ -439,6 +440,9 @@ class ConfigWidget(QWidget):
                 self.sync_custom_columns[config_name]['current_columns'],
                 CONFIG[config_name]
             )
+        
+        # Other Identifiers
+        layout.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
 
     def show_abs_account_popup(self):
         self.abs_account_popup = ABSAccountPopup(self)
@@ -459,6 +463,14 @@ class ConfigWidget(QWidget):
 
         for config_name in CHECKBOXES:
             CONFIG[config_name] = CHECKBOXES[config_name]['checkbox'].checkState() == Qt.Checked
+
+        try:
+            from calibre.ebooks.metadata.sources.prefs import msprefs
+            id_link_rules = msprefs['id_link_rules']
+            id_link_rules['audible'] = [['Audible', f'https://www.audible.com/pd/{{id}}']]
+            msprefs['id_link_rules'] = id_link_rules
+        except ImportError:
+            print('Could not add identifer link rule for Audible')  
 
         CONFIG['scheduleSyncHour'] = self.schedule_hour_input.value()
         CONFIG['scheduleSyncMinute'] = self.schedule_minute_input.value()
