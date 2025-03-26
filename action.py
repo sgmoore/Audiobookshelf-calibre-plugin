@@ -533,6 +533,7 @@ class AudiobookshelfAction(InterfaceAction):
         all_items = []
         for library in libraries_data:
             library_id = library.get('id')
+            library_name = library.get('name')
             if not library_id:
                 continue
             if library.get('mediaType') != 'book':
@@ -544,13 +545,9 @@ class AudiobookshelfAction(InterfaceAction):
             if items_data is None:
                 continue
                 
-            # Extract items from response
-            if isinstance(items_data, dict) and "results" in items_data:
-                items_list = items_data["results"]
-            elif isinstance(items_data, list):
-                items_list = items_data
-            else:
-                items_list = []
+            # Extract items from response and add library name
+            items_list = items_data["results"]
+            items_list = [{**item, 'libraryName': library_name} for item in items_list]
                 
             all_items.extend(items_list)
         
