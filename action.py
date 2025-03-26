@@ -248,28 +248,12 @@ class AudiobookshelfAction(InterfaceAction):
             return None
 
     def sync_from_audiobookshelf(self, silent=False):
-        items_data = self.get_abs_library_items()
-        if items_data is None:
-            return
-
-        # Get me data
         server_url = CONFIG.get('abs_url', 'http://localhost:13378')
         api_key = CONFIG.get('abs_key', '')
-        me_url = f"{server_url}/api/me"
-        me_data = self.api_request(me_url, api_key)
-
-        if me_data is None:
-            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
+        
+        items_list = self.get_abs_library_items()
+        if items_list is None:
             return
-
-        # If items_data is a dict with "results", use that list
-        if isinstance(items_data, dict) and "results" in items_data:
-            items_list = items_data["results"]
-        elif isinstance(items_data, list):
-            items_list = items_data
-        else:
-            items_list = []
-
         # Build dictionary mapping item id to item data (from lib_items)
         items_dict = {}
         for item in items_list:
@@ -277,6 +261,12 @@ class AudiobookshelfAction(InterfaceAction):
             if item_id:
                 items_dict[item_id] = item
 
+        # Get me data
+        me_url = f"{server_url}/api/me"
+        me_data = self.api_request(me_url, api_key)
+        if me_data is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
+            return
         # Build dictionary mapping libraryItemId to media progress data (from mediaProgress)
         media_progress_dict = {}
         media_progress_list = me_data.get('mediaProgress', [])
@@ -284,6 +274,29 @@ class AudiobookshelfAction(InterfaceAction):
             lib_item_id = prog.get('libraryItemId')
             if lib_item_id:
                 media_progress_dict[lib_item_id] = prog
+
+        # Get collection/playlist data
+        if CONFIG.get('column_audiobook_collections'):
+            collections_dict = {}
+            collections_url = f"{server_url}/api/collections"
+            collections_data = self.api_request(collections_url, api_key)
+            if collections_data is None:
+                show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf collections.")
+                return
+            for collection in collections_data.get("collections", []):
+                collection_name = collection.get("name")
+                for book in collection.get("books", []):
+                    collections_dict.setdefault(book.get("id"), []).append(collection_name)
+            
+            playlists_url = f"{server_url}/api/playlists"
+            playlists_data = self.api_request(playlists_url, api_key)
+            if playlists_data is None:
+                show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf playlists.")
+                return
+            for playlist in playlists_data.get("playlists", []):
+                playlist_label = "PL " + playlist.get("name", "")
+                for item in playlist.get("items", []):
+                    collections_dict.setdefault(item.get("libraryItemId"), []).append(playlist_label)
 
         db = self.gui.current_db.new_api
         all_book_ids = db.search('')
@@ -335,6 +348,8 @@ class AudiobookshelfAction(InterfaceAction):
                     value = self.get_nested_value(item_data, data_location)
                 elif api_source == "me":
                     value = self.get_nested_value(me_data, data_location)
+                elif api_source == "collections":
+                    value = collections_dict.get(abs_id, None)
                     
                 if value is not None:
                     if 'transform' in col_meta and callable(col_meta['transform']):

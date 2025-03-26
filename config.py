@@ -39,7 +39,7 @@ Each entry in the below dict has the following keys:
 Each entry is keyed by the name of the config item used to store the selected column's lookup name
   column_heading: Default custom column heading
   datatype: Default custom column datatype
-  is_multiple (optional): only for text columns, whether to allow multiple values (tags).
+  is_multiple (optional): tuple (bool, bool), only for text columns. First bool is make default new column multiple values (tags). Second bool is only is_multiple columns in dropdown.
   additional_params (optional): additional parameters for the custom column display parameter as specified in the calibre API as a dictionary.
     https://github.com/kovidgoyal/calibre/blob/bc29562c0c8534b349c9d330ac9aec72eef2be99/src/calibre/gui2/preferences/create_custom_column.py#L901
   description: Default custom column description
@@ -108,7 +108,7 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audiobook_genres': {
         'column_heading': _("Audiobook Genres"),
         'datatype': 'text',
-        'is_multiple': True,
+        'is_multiple': (True, True),
         'description': _("Genres tagged for the audiobook."),
         'default_lookup_name': '#abs_genres',
         'config_label': _('Audiobook Genres:'),
@@ -120,7 +120,7 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audiobook_tags': {
         'column_heading': _("Audiobook Tags"),
         'datatype': 'text',
-        'is_multiple': True,
+        'is_multiple': (True, True),
         'description': _("Tags associated with the audiobook."),
         'default_lookup_name': '#abs_tags',
         'config_label': _('Audiobook Tags:'),
@@ -143,7 +143,7 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audiobook_narrator': {
         'column_heading': _("Audiobook Narrator"),
         'datatype': 'text',
-        'is_multiple': True,
+        'is_multiple': (True, False),
         'additional_params': {'is_names': True},
         'description': _("Narrator name(s)"),
         'default_lookup_name': '#abs_narrator',
@@ -373,6 +373,16 @@ CUSTOM_COLUMN_DEFAULTS = {
         'transform': lambda value: datetime.fromtimestamp(int(value/1000)).replace(tzinfo=local_tz),
         'last_in_group': True,
     },
+    'column_audiobook_collections': {
+        'column_heading': _("Audiobook Collections"),
+        'datatype': 'text',
+        'is_multiple': (True, True),
+        'description': _("Collections and Playlists associated with the audiobook"),
+        'default_lookup_name': '#abs_collections',
+        'config_label': _('Audiobook Collections:'),
+        'config_tool_tip': _('A "Text" column to store the names of collections and playlists the audiobook is assocated with as tags.'),
+        'api_source': "collections",
+    },
 }
 
 CHECKBOXES = { # Each entry in the below dict is keyed with config_name
@@ -430,7 +440,8 @@ class ConfigWidget(QWidget):
             "You must link the audiobook using either Quick Link (automatic by ASIN or ISBN) "
             "or by selecting the correct book using the link feature.\n"
             "This functionality can optionally be scheduled as a daily sync from within calibre. "
-            "Enter scheduled time in military time (default is 4 AM local time)."
+            "Enter scheduled time in military time (default is 4 AM local time).\n"
+            "This plugin can also maintain bidirectional collection/playlist sync."
         )
         ps_header_label.setWordWrap(True)
         layout.addWidget(ps_header_label)
@@ -474,7 +485,7 @@ class ConfigWidget(QWidget):
         # Populate custom column dropdowns
         for config_name, metadata in CUSTOM_COLUMN_DEFAULTS.items():
             self.sync_custom_columns[config_name] = {
-                'current_columns': self.get_custom_columns(metadata['datatype'])
+                'current_columns': self.get_custom_columns(metadata['datatype'], metadata.get('is_multiple', (False, False))[1])
             }
             self._column_combo = self.create_custom_column_controls(
                 columns_group_box_layout2, 
@@ -532,6 +543,7 @@ class ConfigWidget(QWidget):
         label = QLabel(checkboxMeta['config_label'])
         label.setToolTip(checkboxMeta['config_tool_tip'])
         label.setBuddy(checkbox)
+        label.mousePressEvent = lambda event, checkbox=checkbox: checkbox.toggle()
         layout.addWidget(checkbox)
         layout.addWidget(label)
         layout.addStretch()
@@ -564,7 +576,7 @@ class ConfigWidget(QWidget):
         }
         datatype = column_meta['datatype']
         column_heading = column_meta['column_heading']
-        is_multiple = column_meta.get('is_multiple', False)
+        is_multiple = column_meta.get('is_multiple', (False, False))
         
         # Get the create column instance
         create_new_custom_column_instance = self.get_create_new_custom_column_instance
@@ -579,7 +591,7 @@ class ConfigWidget(QWidget):
                 new_lookup_name, 
                 column_heading, 
                 datatype, 
-                is_multiple, 
+                is_multiple[0], 
                 display=display_params,
                 generate_unused_lookup_name=True,
                 freeze_lookup_name=False
@@ -606,7 +618,7 @@ class ConfigWidget(QWidget):
             self._get_create_new_custom_column_instance = CreateNewCustomColumn(self.action.gui)
         return self._get_create_new_custom_column_instance
 
-    def get_custom_columns(self, datatype):
+    def get_custom_columns(self, datatype, only_is_multiple=False):
         if SUPPORTS_CREATE_CUSTOM_COLUMN:
             custom_columns = self.get_create_new_custom_column_instance.current_columns()
         else:
@@ -619,6 +631,11 @@ class ConfigWidget(QWidget):
         if datatype == 'rating':  # Add rating column if requested
             ratings_column_name = self.action.gui.library_view.model().orig_headers['rating']
             available_columns['rating'] = {'name': ratings_column_name}
+        if only_is_multiple: # If user requests only is_multiple columns check and filter
+            available_columns = {
+                key: column for key, column in available_columns.items()
+                if column.get('is_multiple', False) != {}
+            }
         return available_columns
 
     def create_separator(self):
