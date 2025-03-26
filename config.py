@@ -86,14 +86,14 @@ CUSTOM_COLUMN_DEFAULTS = {
     },
     'column_audiobook_series': {
         'column_heading': _("Audiobook Series"),
-        'datatype': 'text',
+        'datatype': 'series',
         'description': _("Series of the audiobook"),
         'default_lookup_name': '#abs_series',
         'config_label': _('Audiobook Series:'),
-        'config_tool_tip': _('A "Text" column to store the series from the audiobook metadata.'),
+        'config_tool_tip': _('A "series" column to store the series from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'seriesName'],
-        'transform': (lambda value: value if len(value) > 0 else None),
+        'transform': (lambda value: None if not value else (value.split(" #")[0].strip(), float(value.split(" #")[1]) if len(value.split(" #")) > 1 else float(1))),
     },
     'column_audiobook_language': {
         'column_heading': _("Audiobook Language"),

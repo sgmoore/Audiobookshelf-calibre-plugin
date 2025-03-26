@@ -215,10 +215,11 @@ class AudiobookshelfAction(InterfaceAction):
         metadata = db.get_metadata(book_id)
         updates = []
         for key, new_value in keys_values_to_update.items():
-            old_value = metadata.get(key)
-            if new_value != old_value:
+            if isinstance(new_value, tuple):
+                metadata.set(key, new_value[0], extra=new_value[1])
+            else:
                 metadata.set(key, new_value)
-                updates.append(key)
+            updates.append(key)
         if updates:
             db.set_metadata(book_id, metadata, set_title=False, set_authors=False)
         return True, {'updated': updates, 'book_id': book_id}
@@ -344,6 +345,9 @@ class AudiobookshelfAction(InterfaceAction):
                             # Convert value to the same type as old_value
                             if isinstance(old_value, str) and isinstance(value, list):
                                 value = ', '.join(value)
+                            elif col_meta['datatype'] == 'series':
+                                if old_value == value[0] and metadata.get(f'{column_name}_index') == value[1]:
+                                    value = old_value
                             elif isinstance(old_value, bool):
                                 value = bool(value)
                             elif isinstance(old_value, int):
