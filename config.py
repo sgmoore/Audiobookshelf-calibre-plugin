@@ -93,6 +93,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('A "Text" column to store the series from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'seriesName'],
+        'transform': (lambda value: value if len(value) > 0 else None),
     },
     'column_audiobook_language': {
         'column_heading': _("Audiobook Language"),
@@ -114,6 +115,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('A "Text" column to store the genres from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'genres'],
+        'transform': (lambda genres: [genre.replace(',', ';') for genre in genres]),
     },
     'column_audiobook_tags': {
         'column_heading': _("Audiobook Tags"),
@@ -125,6 +127,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('A "Text" column to store the tags from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'tags'],
+        'transform': (lambda tags: [tag.replace(',', ';') for tag in tags]),
     },
     'column_audiobook_bookmarks': {
         'column_heading': _("Audiobook Bookmarks"),
