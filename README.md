@@ -42,19 +42,19 @@ the **create new columns** option in the config dropdowns.
 
 | Column                    | Description                                                   | Type   |
 |---------------------------|---------------------------------------------------------------|--------|
-| Audiobook Title           | Title of the audiobook                                        | Text   |
-| Audiobook Subtitle        | Subtitle of the audiobook                                     | Text   |
-| Audiobook Description     | Description of the audiobook                                  | Comments |
-| Audiobook Series          | Series of the audiobook                                       | Series |
-| Audiobook Language        | Language of the audiobook                                     | Text   |
-| Audiobook Genres          | Genres tagged for the audiobook                               | Text (Tags)  |
-| Audiobook Tags            | Tags associated with the audiobook                            | Text (Tags)  |
-| Audiobook Bookmarks       | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments |
-| Audiobook Narrator        | Narrator name(s)                                              | Text (Names)  |
-| Audiobook Publisher       | Publisher of the audiobook                                    | Text   |
-| Audiobook Publish Year    | Year the audiobook was published                              | Integer |
-| Audiobook Abridged        | Indicates if the audiobook is abridged                        | Yes/No |
-| Audiobook Explicit        | Indicates if the audiobook is explicit                        | Yes/No |
+| Audiobook Title*          | Title of the audiobook                                        | Text   |
+| Audiobook Subtitle*       | Subtitle of the audiobook                                     | Text   |
+| Audiobook Description*    | Description of the audiobook                                  | Comments |
+| Audiobook Series*         | Series of the audiobook                                       | Series |
+| Audiobook Language*       | Language of the audiobook                                     | Text   |
+| Audiobook Genres*         | Genres tagged for the audiobook                               | Text (Tags)  |
+| Audiobook Tags*           | Tags associated with the audiobook                            | Text (Tags)  |
+| Audiobook Bookmarks*      | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments |
+| Audiobook Narrator*       | Narrator name(s)                                              | Text (Names)  |
+| Audiobook Publisher*      | Publisher of the audiobook                                    | Text   |
+| Audiobook Publish Year*   | Year the audiobook was published                              | Integer |
+| Audiobook Abridged*       | Indicates if the audiobook is abridged                        | Yes/No |
+| Audiobook Explicit*       | Indicates if the audiobook is explicit                        | Yes/No |
 ||||
 | Audiobook Size            | Size of the audiobook in MB                                   | Text   |
 | Audiobook File Count      | Number of files that comprise the audiobook                   | Integer |
@@ -77,17 +77,18 @@ the **create new columns** option in the config dropdowns.
 | Audiobook Finished?       | Indicates if the audiobook has been finished                  | Yes/No |
 | Audiobook Finish Date     | The date when the audiobook was finished                      | Date   |
 ||||
-| Audiobook Collections     | Collections and Playlists associated with the audiobook       | Text (Tags)   |
+| Audiobook Collections*    | Collections and Playlists associated with the audiobook       | Text (Tags)   |
 </details>
 
 ## Usage
 
 ### Sync
 
-1. Click the Audiobookshelf icon or right-click and select "Sync from Audiobookshelf"
+1. Click the Audiobookshelf icon in the toolbar or right-click and select "Sync from Audiobookshelf"
 
 #### Scheduled Sync
 
+Set and Forget!  
 Enable scheduled sync in the plugin configuration to automatically sync metadata at a specified time once a day.
 
 ### Linking Books
@@ -108,12 +109,16 @@ Quick Linking attempts to match up books by ISBN and ASIN (Audible ASIN). NGL do
 
 Builds a table of audiobooks in Audiobookshelf that aren't linked to a book in calibre.
 
+### Audible ASIN Sync
+
+Sync over the Audible ASIN from Audiobookshelf which adds a link to the Audible page straight from calibre.
+
 ### Writeback
 
 This plugin allows calibre to push metadata back to Audiobookshelf when changed inside of calibre.  
-Any of the columns in the config with a * are able to be easily sync'd back to Audiobookshelf.  
+Any of the columns with a * are able to be easily sync'd back to Audiobookshelf.  
 This feature is offered with the disclaimer that this will edit your Audiobooshelf database.
-Make sure you have backups enabled in case this borks anything up, which it shouldn't but you never know.  
+Make sure you have Audiobookshelf backups enabled in case this borks anything up, which it shouldn't but you never know.  
 For Collections/Playlists this plugin will not create new ones, only update existing.
 
 ## Support
