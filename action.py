@@ -26,6 +26,7 @@ from PyQt5.QtGui import QPixmap
 
 from calibre.gui2.actions import InterfaceAction
 from calibre.gui2.dialogs.message_box import MessageBox
+from calibre.db.listeners import EventType
 from calibre.utils.config import JSONConfig
 from calibre.gui2 import (
     error_dialog,
@@ -59,6 +60,7 @@ class AudiobookshelfAction(InterfaceAction):
     ])
     dont_remove_from = InterfaceAction.all_locations - dont_add_to
     action_type = 'current'
+    Syncing = False
 
     def genesis(self):
         base = self.interface_action_base_plugin
@@ -121,9 +123,18 @@ class AudiobookshelfAction(InterfaceAction):
             triggered=self.show_about,
             description=''
         )
+        
         # Start scheduled sync if enabled
         if CONFIG.get('checkbox_enable_scheduled_sync', False):
             self.scheduled_sync()
+        
+        # Start writeback watcher if enabled
+        if CONFIG.get('checkbox_enable_writeback', False):
+            watched_columns = {}
+            for config_name, col_meta in COLUMNS.items():
+                if '*' in col_meta['config_label'] and CONFIG.get(config_name):
+                    watched_columns[CONFIG.get(config_name)] = col_meta['data_location'][-1]
+            self.watcher(watched_columns)
 
     def show_config(self):
         self.interface_action_base_plugin.do_user_config(self.gui)
@@ -204,6 +215,63 @@ class AudiobookshelfAction(InterfaceAction):
             QTimer.singleShot(timeDiff, scheduledTask)
         main()
 
+    def watcher(self, watched_columns):
+        """Watch specified columns for changes and sync back to Audiobookshelf"""
+        if not hasattr(self.gui, 'current_db'):
+            print("Database not yet initialized, delaying watcher setup")
+            QTimer.singleShot(1000, lambda: self.watcher(watched_columns))
+            return
+
+        def event_listener(db, event_type, event_data):
+            if not self.Syncing and event_type == EventType.metadata_changed:
+                print(event_data)
+                field, book_ids = event_data
+                if field.endswith('_index'):
+                    field = field[:-6]
+                # Only process if the changed field is one we're watching
+                if field in watched_columns:
+                    for book_id in book_ids:
+                        metadata = db.get_metadata(book_id, index_is_id=True)
+                        abs_id = metadata.get('identifiers', '').get('audiobookshelf_id', '')
+                        if not abs_id:
+                            continue
+                        new_value = metadata.get(field)
+                        if watched_columns[field] == 'collections':
+                            collections_dict, collections_map = self.get_abs_collections(server_url, api_key)
+                            server_collections = collections_dict.get(abs_id, [])
+                            for collection in server_collections:
+                                if collection not in new_value: # Item in Server but not local, therefore remove from server
+                                    collection_id = collections_map.get(collection, None)
+                                    if collection_id:
+                                        if collection[0:3] == "PL ": # Playlist
+                                            self.api_request(f"{server_url}/api/playlists/{collection_id}/batch/remove", api_key, ('POST', {"items": [abs_id]}))
+                                        else: # Collection
+                                            self.api_request(f"{server_url}/api/collections/{collection_id}/batch/remove", api_key, ('POST', {"books": [abs_id]}))
+                            for collection in new_value:
+                                if collection not in server_collections: # Item not in server but in local, therefore add to server
+                                    collection_id = collections_map.get(collection, None)
+                                    if collection_id:
+                                        if collection[0:3] == 'PL ': # Playlist
+                                            self.api_request(f"{server_url}/api/playlists/{collection_id}/batch/add", api_key, ('POST', {"items": [{"libraryItemId": abs_id}]}))
+                                        else: # Collection
+                                            self.api_request(f"{server_url}/api/collections/{collection_id}/batch/add", api_key, ('POST', {"books": [abs_id]}))
+                        else:
+                            if watched_columns[field].startswith('series'):
+                                body = {"metadata": {'series': [{
+                                    "name": new_value,
+                                    "sequence": str(int(metadata.get(f'{field}_index', 1)))
+                                    }]
+                                }}
+                            elif watched_columns[field] == 'tags':
+                                body = {"tags": new_value}
+                            else:
+                                body = {"metadata": {watched_columns[field]: new_value}}
+                            self.api_request(f"{server_url}/api/items/{abs_id}/media", api_key, ('PATCH', body))
+
+        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
+        api_key = CONFIG.get('abs_key', '')
+        self.gui.add_db_listener(event_listener)
+
     def update_metadata(self, book_uuid, keys_values_to_update):
         db = self.gui.current_db.new_api
         try:
@@ -234,20 +302,26 @@ class AudiobookshelfAction(InterfaceAction):
                 return None
         return data
 
-    def api_request(self, url, api_key):
+    def api_request(self, url, api_key, body=None):
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Accept': 'application/json',
+            'Content-Type': 'application/json',
         }
         req = Request(url, headers=headers)
+        if body is not None:
+            req.method = body[0]
+            req.data = json.dumps(body[1]).encode("utf-8")
         try:
             with urlopen(req, timeout=20) as response:
                 resp_data = response.read()
                 return json.loads(resp_data.decode('utf-8'))
         except (HTTPError, URLError):
+            print("API request failed")
             return None
 
     def sync_from_audiobookshelf(self, silent=False):
+        self.Syncing = True
         server_url = CONFIG.get('abs_url', 'http://localhost:13378')
         api_key = CONFIG.get('abs_key', '')
         
@@ -279,26 +353,7 @@ class AudiobookshelfAction(InterfaceAction):
 
         # Get collection/playlist data
         if CONFIG.get('column_audiobook_collections'):
-            collections_dict = {}
-            collections_url = f"{server_url}/api/collections"
-            collections_data = self.api_request(collections_url, api_key)
-            if collections_data is None:
-                show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf collections.")
-                return
-            for collection in collections_data.get("collections", []):
-                collection_name = collection.get("name")
-                for book in collection.get("books", []):
-                    collections_dict.setdefault(book.get("id"), []).append(collection_name)
-            
-            playlists_url = f"{server_url}/api/playlists"
-            playlists_data = self.api_request(playlists_url, api_key)
-            if playlists_data is None:
-                show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf playlists.")
-                return
-            for playlist in playlists_data.get("playlists", []):
-                playlist_label = "PL " + playlist.get("name", "")
-                for item in playlist.get("items", []):
-                    collections_dict.setdefault(item.get("libraryItemId"), []).append(playlist_label)
+            collections_dict = self.get_abs_collections(server_url, api_key)[0]
 
         db = self.gui.current_db.new_api
         all_book_ids = db.search('')
@@ -348,8 +403,6 @@ class AudiobookshelfAction(InterfaceAction):
                         value = True
                 elif api_source == "lib_items":
                     value = self.get_nested_value(item_data, data_location)
-                elif api_source == "me":
-                    value = self.get_nested_value(me_data, data_location)
                 elif api_source == "collections":
                     value = collections_dict.get(abs_id, None)
                 
@@ -393,6 +446,8 @@ class AudiobookshelfAction(InterfaceAction):
             message = (f"Total books processed: {len(results)}\n"
                        f"Updated: {num_success}\nSkipped: {num_skip}\nFailed: {num_fail}\n")
             SyncCompletionDialog(self.gui, "Sync Completed", message, results, type="info").exec_()
+        
+        self.Syncing = False
 
     def quick_link_books(self):
         items_data = self.get_abs_library_items()
@@ -574,6 +629,30 @@ class AudiobookshelfAction(InterfaceAction):
         
         return all_items if all_items else None
 
+    def get_abs_collections(self, server_url, api_key):
+        collections_dict = {}
+        collections_map = {}
+        collections_data = self.api_request(f"{server_url}/api/collections", api_key)
+        if collections_data is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf collections.")
+            return
+        for collection in collections_data.get("collections", []):
+            collection_name = collection.get("name")
+            collections_map[collection_name] = collection.get("id")
+            for book in collection.get("books", []):
+                collections_dict.setdefault(book.get("id"), []).append(collection_name)
+        
+        playlists_data = self.api_request(f"{server_url}/api/playlists", api_key)
+        if playlists_data is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf playlists.")
+            return
+        for playlist in playlists_data.get("playlists", []):
+            playlist_label = "PL " + playlist.get("name", "")
+            collections_map[playlist_label] = playlist.get("id")
+            for item in playlist.get("items", []):
+                collections_dict.setdefault(item.get("libraryItemId"), []).append(playlist_label)
+
+        return collections_dict, collections_map
 
 class SyncCompletionDialog(QDialog):
     def __init__(self, parent=None, title="", msg="", results=None, type=None):

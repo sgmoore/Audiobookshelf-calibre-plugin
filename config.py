@@ -59,7 +59,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Title of the audiobook"),
         'default_lookup_name': '#abs_title',
-        'config_label': _('Audiobook Title:'),
+        'config_label': _('Audiobook Title*:'),
         'config_tool_tip': _('A "Text" column to store the title from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'title'],
@@ -69,7 +69,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Subtitle of the audiobook"),
         'default_lookup_name': '#abs_subtitle',
-        'config_label': _('Audiobook Subtitle:'),
+        'config_label': _('Audiobook Subtitle*:'),
         'config_tool_tip': _('A "Text" column to store the subtitle from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'subtitle'],
@@ -79,7 +79,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'comments',
         'description': _("Description of the audiobook"),
         'default_lookup_name': '#abs_description',
-        'config_label': _('Audiobook Description:'),
+        'config_label': _('Audiobook Description*:'),
         'config_tool_tip': _('A "Long text" column to store the description from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'description'],
@@ -89,7 +89,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'series',
         'description': _("Series of the audiobook"),
         'default_lookup_name': '#abs_series',
-        'config_label': _('Audiobook Series:'),
+        'config_label': _('Audiobook Series*:'),
         'config_tool_tip': _('A "series" column to store the series from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'seriesName'],
@@ -100,7 +100,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Language of the audiobook"),
         'default_lookup_name': '#abs_language',
-        'config_label': _('Audiobook Language:'),
+        'config_label': _('Audiobook Language*:'),
         'config_tool_tip': _('A "Text" column to store the language from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'language'],
@@ -111,7 +111,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'is_multiple': (True, True),
         'description': _("Genres tagged for the audiobook."),
         'default_lookup_name': '#abs_genres',
-        'config_label': _('Audiobook Genres:'),
+        'config_label': _('Audiobook Genres*:'),
         'config_tool_tip': _('A "Text" column to store the genres from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'genres'],
@@ -123,7 +123,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'is_multiple': (True, True),
         'description': _("Tags associated with the audiobook."),
         'default_lookup_name': '#abs_tags',
-        'config_label': _('Audiobook Tags:'),
+        'config_label': _('Audiobook Tags*:'),
         'config_tool_tip': _('A "Text" column to store the tags from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'tags'],
@@ -136,7 +136,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'is_names': True},
         'description': _("Narrator name(s)"),
         'default_lookup_name': '#abs_narrator',
-        'config_label': _('Audiobook Narrator:'),
+        'config_label': _('Audiobook Narrator*:'),
         'config_tool_tip': _('A "Text" column to store the narrator name from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'narratorName'],
@@ -147,7 +147,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Publisher of the audiobook"),
         'default_lookup_name': '#abs_publisher',
-        'config_label': _('Audiobook Publisher:'),
+        'config_label': _('Audiobook Publisher*:'),
         'config_tool_tip': _('A "Text" column to store the publisher from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'publisher'],
@@ -157,7 +157,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'int',
         'description': _("Year the audiobook was published"),
         'default_lookup_name': '#abs_publish_year',
-        'config_label': _('Audiobook Publish Year:'),
+        'config_label': _('Audiobook Publish Year*:'),
         'config_tool_tip': _('A "Integer" column to store the year the audiobook was published.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'publishedYear'],
@@ -168,7 +168,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'bool',
         'description': _("Indicates if the audiobook is abridged"),
         'default_lookup_name': '#abs_abridged',
-        'config_label': _('Audiobook Abridged:'),
+        'config_label': _('Audiobook Abridged*:'),
         'config_tool_tip': _('A "Yes/No" column to indicate if the audiobook is abridged.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'abridged'],
@@ -179,7 +179,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'bool',
         'description': _("Indicates if the audiobook is explicit"),
         'default_lookup_name': '#abs_explicit',
-        'config_label': _('Audiobook Explicit:'),
+        'config_label': _('Audiobook Explicit*:'),
         'config_tool_tip': _('A "Yes/No" column to indicate if the audiobook is explicit.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'explicit'],
@@ -381,9 +381,10 @@ CUSTOM_COLUMN_DEFAULTS = {
         'is_multiple': (True, True),
         'description': _("Collections and Playlists associated with the audiobook"),
         'default_lookup_name': '#abs_collections',
-        'config_label': _('Audiobook Collections:'),
+        'config_label': _('Audiobook Collections*:'),
         'config_tool_tip': _('A "Text" column to store the names of collections and playlists the audiobook is assocated with as tags.'),
         'api_source': "collections",
+        'data_location': ['collections'],
     },
 }
 
@@ -395,6 +396,10 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
     'checkbox_enable_Audible_ASIN_sync': {
         'config_label': 'Enable Audible ASIN Sync',
         'config_tool_tip': 'Enable sync of the Audible identifier and Audible link.',
+    },
+    'checkbox_enable_writeback': {
+        'config_label': 'Enable Writeback',
+        'config_tool_tip': 'If columns marked with a * are changed in calibre, update ABS.',
     },
 }
 
@@ -443,7 +448,7 @@ class ConfigWidget(QWidget):
             "or by selecting the correct book using the link feature.\n"
             "This functionality can optionally be scheduled as a daily sync from within calibre. "
             "Enter scheduled time in military time (default is 4 AM local time).\n"
-            "This plugin can also maintain bidirectional collection/playlist sync."
+            "This plugin can also maintain bidirectional sync."
         )
         ps_header_label.setWordWrap(True)
         layout.addWidget(ps_header_label)
@@ -502,6 +507,19 @@ class ConfigWidget(QWidget):
         # Other Identifiers
         layout.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
 
+        # Writeback
+        layout.addWidget(self.create_separator())
+        writeback_header_label = QLabel(
+            "This plugin allows calibre to push metadata back to Audiobookshelf when changed inside of calibre.\n"
+            "Any of the columns above with a * are able to be easily sync'd back to Audiobookshelf.\n"
+            "This feature is offered with the disclaimer that this will edit your Audiobooshelf database. "
+            "Make sure you have backups enabled in case this borks anything up, which it shouldn't but you never know.\n"
+            "For Collections/Playlists this plugin will not create new ones, only update existing."
+        )
+        writeback_header_label.setWordWrap(True)
+        layout.addWidget(writeback_header_label)
+        layout.addLayout(self.add_checkbox('checkbox_enable_writeback'))
+
     def show_abs_account_popup(self):
         self.abs_account_popup = ABSAccountPopup(self)
         self.abs_account_popup.show()
@@ -512,6 +530,7 @@ class ConfigWidget(QWidget):
 
         needRestart = (self.must_restart or
             CONFIG['checkbox_enable_scheduled_sync'] != (CHECKBOXES['checkbox_enable_scheduled_sync']['checkbox'].checkState() == Qt.Checked) or
+            CONFIG['checkbox_enable_writeback'] != (CHECKBOXES['checkbox_enable_writeback']['checkbox'].checkState() == Qt.Checked) or
             CONFIG['scheduleSyncHour'] != self.schedule_hour_input.value() or
             CONFIG['scheduleSyncMinute'] != self.schedule_minute_input.value()
         )

@@ -108,6 +108,14 @@ Quick Linking attempts to match up books by ISBN and ASIN (Audible ASIN). NGL do
 
 Builds a table of audiobooks in Audiobookshelf that aren't linked to a book in calibre.
 
+### Writeback
+
+This plugin allows calibre to push metadata back to Audiobookshelf when changed inside of calibre.  
+Any of the columns in the config with a * are able to be easily sync'd back to Audiobookshelf.  
+This feature is offered with the disclaimer that this will edit your Audiobooshelf database.
+Make sure you have backups enabled in case this borks anything up, which it shouldn't but you never know.  
+For Collections/Playlists this plugin will not create new ones, only update existing.
+
 ## Support
 
 For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/jbhul/Audiobookshelf-calibre-plugin/issues).
