@@ -442,6 +442,7 @@ class ConfigWidget(QWidget):
         layout.addLayout(title_layout)
 
         # Sync Section
+        layout.addWidget(self.create_separator())
         ps_header_label = QLabel(
             "This plugin allows calibre to pull metadata from the built-in Audiobookshelf API.\n"
             "You must link the audiobook using either Quick Link (automatic by ASIN or ISBN) "
@@ -467,12 +468,14 @@ class ConfigWidget(QWidget):
         self.schedule_hour_input.setRange(0, 23)
         self.schedule_hour_input.setValue(CONFIG['scheduleSyncHour'])
         self.schedule_hour_input.setSuffix('h')
+        self.schedule_hour_input.wheelEvent = lambda event: event.ignore()
         scheduled_sync_layout.addWidget(self.schedule_hour_input)
         scheduled_sync_layout.addWidget(QLabel(':'))
         self.schedule_minute_input = QSpinBox()
         self.schedule_minute_input.setRange(0, 59)
         self.schedule_minute_input.setValue(CONFIG['scheduleSyncMinute'])
         self.schedule_minute_input.setSuffix('m')
+        self.schedule_minute_input.wheelEvent = lambda event: event.ignore()
         scheduled_sync_layout.addWidget(self.schedule_minute_input)
         layout.addLayout(scheduled_sync_layout)
 
@@ -505,7 +508,18 @@ class ConfigWidget(QWidget):
             )
         
         # Other Identifiers
+        layout.addWidget(self.create_separator())
+        identifer_label = QLabel('Enable additional Identifer Sync and add composite columns to view the identifers below.')
+        layout.addWidget(identifer_label)
         layout.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
+        identifier_column_layout = QHBoxLayout()
+        abs_id_button = QPushButton('Audiobookshelf ID', self)
+        abs_id_button.clicked.connect(lambda: self.add_composite_column('#abs_id', 'Audiobookshelf ID', 'audiobookshelf_id'))
+        identifier_column_layout.addWidget(abs_id_button)
+        asin_button = QPushButton('Audible ASIN', self)
+        asin_button.clicked.connect(lambda: self.add_composite_column('#abs_asin', 'Audible ASIN', 'audible'))
+        identifier_column_layout.addWidget(asin_button)
+        layout.addLayout(identifier_column_layout)
 
         # Writeback
         layout.addWidget(self.create_separator())
@@ -523,6 +537,25 @@ class ConfigWidget(QWidget):
     def show_abs_account_popup(self):
         self.abs_account_popup = ABSAccountPopup(self)
         self.abs_account_popup.show()
+
+    def add_composite_column(self, lookup_name, column_heading, identifier):
+        # Get the create column instance
+        create_new_custom_column_instance = self.get_create_new_custom_column_instance
+        if not create_new_custom_column_instance:
+            return False
+        
+        result = create_new_custom_column_instance.create_column(
+                lookup_name, 
+                column_heading, 
+                'composite', 
+                False, 
+                display={'composite_template': f'{{identifiers:select({identifier})}}'},
+                generate_unused_lookup_name=True,
+                freeze_lookup_name=False
+            )
+            
+        if result and result[0] == CreateNewCustomColumn.Result.COLUMN_ADDED:
+            self.must_restart = True
 
     def save_settings(self):
         debug_print = partial(module_debug_print, ' ConfigWidget:save_settings:')
