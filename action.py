@@ -262,6 +262,10 @@ class AudiobookshelfAction(InterfaceAction):
                                     "sequence": str(int(metadata.get(f'{field}_index', 1)))
                                     }]
                                 }}
+                            elif watched_columns[field] == 'authorName':
+                                body = {"metadata": {'authors': [{"name": author} for author in new_value]}}
+                            elif watched_columns[field] == 'narratorName':
+                                body = {"metadata": {'narrators': new_value}}
                             elif watched_columns[field] == 'tags':
                                 body = {"tags": new_value}
                             else:

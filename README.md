@@ -45,12 +45,12 @@ the **create new columns** option in the config dropdowns.
 | Audiobook Title*          | Title of the audiobook                                        | Text   |
 | Audiobook Subtitle*       | Subtitle of the audiobook                                     | Text   |
 | Audiobook Description*    | Description of the audiobook                                  | Comments |
+| Audiobook Author*         | Author name(s)                                                | Text (Names)  |
+| Audiobook Narrator*       | Narrator name(s)                                              | Text (Names)  |
 | Audiobook Series*         | Series of the audiobook                                       | Series |
 | Audiobook Language*       | Language of the audiobook                                     | Text   |
 | Audiobook Genres*         | Genres tagged for the audiobook                               | Text (Tags)  |
 | Audiobook Tags*           | Tags associated with the audiobook                            | Text (Tags)  |
-| Audiobook Bookmarks*      | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments |
-| Audiobook Narrator*       | Narrator name(s)                                              | Text (Names)  |
 | Audiobook Publisher*      | Publisher of the audiobook                                    | Text   |
 | Audiobook Publish Year*   | Year the audiobook was published                              | Integer |
 | Audiobook Abridged*       | Indicates if the audiobook is abridged                        | Yes/No |
@@ -77,6 +77,7 @@ the **create new columns** option in the config dropdowns.
 | Audiobook Finished?       | Indicates if the audiobook has been finished                  | Yes/No |
 | Audiobook Finish Date     | The date when the audiobook was finished                      | Date   |
 ||||
+| Audiobook Bookmarks       | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments |
 | Audiobook Collections*    | Collections and Playlists associated with the audiobook       | Text (Tags)   |
 </details>
 
