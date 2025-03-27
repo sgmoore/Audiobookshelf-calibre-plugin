@@ -4,7 +4,7 @@
 import os
 import json
 from functools import partial
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from PyQt5.Qt import (
     QComboBox,
@@ -47,8 +47,8 @@ Each entry is keyed by the name of the config item used to store the selected co
   config_label: Label for the item in the Config UI
   config_tool_tip: Tooltip for the item in the Config UI
   api_source: Source of the data; "lib_items" for the GET /api/libraries/{ID}/items endpoint,
-              "mediaProgress" for values in mediaProgress of GET /api/me (except bookmarks),
-              or "me" for bookmarks.
+              "mediaProgress" for the GET /api/me endpoint,
+              "collections" for the combined GET /api/collections /api/playlists endpoints.
   data_location: Reference (as a list of keys) to the value in the API response.
   transform (optional): lambda expression to be applied in formatting the value.
   last_in_group (optional): if present and true, a separator will be added after this item in the Config UI.
@@ -128,17 +128,6 @@ CUSTOM_COLUMN_DEFAULTS = {
         'api_source': "lib_items",
         'data_location': ['media', 'tags'],
         'transform': (lambda tags: [tag.replace(',', ';') for tag in tags]),
-    },
-    'column_audiobook_bookmarks': {
-        'column_heading': _("Audiobook Bookmarks"),
-        'datatype': 'comments',
-        'description': _("Bookmarks in the format 'title at time' (time as hh:mm:ss)"),
-        'default_lookup_name': '#abs_bookmarks',
-        'config_label': _('Audiobook Bookmarks:'),
-        'config_tool_tip': _('A "Long text" column to store the audiobook bookmarks with timestamps'),
-        'api_source': "me",  # Bookmarks come directly from the GET /api/me bookmarks list.
-        'data_location': ['bookmarks'],
-        'transform': (lambda bookmarks: "\n".join(f"{b.get('title', 'No Title')} at {b.get('time', '00:00:00')}" for b in bookmarks) if isinstance(bookmarks, list) and len(bookmarks) > 0 else 'No Bookmarks'),
     },
     'column_audiobook_narrator': {
         'column_heading': _("Audiobook Narrator"),
@@ -372,6 +361,19 @@ CUSTOM_COLUMN_DEFAULTS = {
         'data_location': ['finishedAt'],
         'transform': lambda value: datetime.fromtimestamp(int(value/1000)).replace(tzinfo=local_tz),
         'last_in_group': True,
+    },
+    'column_audiobook_bookmarks': {
+        'column_heading': _("Audiobook Bookmarks"),
+        'datatype': 'comments',
+        'description': _("Bookmarks in the format 'title at time' (time as hh:mm:ss)"),
+        'default_lookup_name': '#abs_bookmarks',
+        'config_label': _('Audiobook Bookmarks:'),
+        'config_tool_tip': _('A "Long text" column to store the audiobook bookmarks with timestamps'),
+        'api_source': "mediaProgress",
+        'data_location': ['bookmarks'],
+        'transform': (lambda bookmarks: "\n".join(
+            f"{b.get('title', 'No Title')} at {str(timedelta(seconds=b.get('time', 0)))}" for b in bookmarks) 
+            if bookmarks else 'No Bookmarks'),
     },
     'column_audiobook_collections': {
         'column_heading': _("Audiobook Collections"),

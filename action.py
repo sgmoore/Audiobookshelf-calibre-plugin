@@ -269,11 +269,13 @@ class AudiobookshelfAction(InterfaceAction):
             return
         # Build dictionary mapping libraryItemId to media progress data (from mediaProgress)
         media_progress_dict = {}
-        media_progress_list = me_data.get('mediaProgress', [])
-        for prog in media_progress_list:
-            lib_item_id = prog.get('libraryItemId')
-            if lib_item_id:
-                media_progress_dict[lib_item_id] = prog
+        for prog in me_data.get('mediaProgress', []):
+            media_progress_dict[prog.get('libraryItemId')] = {**prog, 'bookmarks': []}
+        for bookmark in me_data.get('bookmarks'):
+            media_progress_dict[bookmark["libraryItemId"]]['bookmarks'].append({
+                "title": bookmark["title"],
+                "time": bookmark["time"],
+            })
 
         # Get collection/playlist data
         if CONFIG.get('column_audiobook_collections'):
@@ -335,7 +337,7 @@ class AudiobookshelfAction(InterfaceAction):
                 column_name = CONFIG.get(config_name, '')
                 if not column_name:  # Skip if column not configured
                     continue
-                    
+                
                 data_location = col_meta.get('data_location', [])
                 api_source = col_meta.get('api_source', '')
                 value = None
@@ -350,7 +352,7 @@ class AudiobookshelfAction(InterfaceAction):
                     value = self.get_nested_value(me_data, data_location)
                 elif api_source == "collections":
                     value = collections_dict.get(abs_id, None)
-                    
+                
                 if value is not None:
                     if 'transform' in col_meta and callable(col_meta['transform']):
                         value = col_meta['transform'](value)
