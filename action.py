@@ -404,7 +404,7 @@ class AudiobookshelfAction(InterfaceAction):
                 elif api_source == "lib_items":
                     value = self.get_nested_value(item_data, data_location)
                 elif api_source == "collections":
-                    value = collections_dict.get(abs_id, None)
+                    value = collections_dict.get(abs_id, [])
                 
                 if value is not None:
                     if 'transform' in col_meta and callable(col_meta['transform']):
