@@ -89,6 +89,15 @@ class AudiobookshelfAction(InterfaceAction):
             triggered=self.quick_link_books,
             description=''
         )
+        if DEBUG:
+            self.create_menu_action(
+                menu,
+                'Remove ABS Link',
+                'Remove ABS Link',
+                icon='list_remove.png',
+                triggered=self.unlink_audiobookshelf_book,
+                description=''
+            )
         menu.addSeparator()
         self.create_menu_action(
             menu,
@@ -534,8 +543,8 @@ class AudiobookshelfAction(InterfaceAction):
         SyncCompletionDialog(self.gui, "Quick Link Results", message, results, type="info").exec_()
 
     def link_audiobookshelf_book(self):
-        items_data = self.get_abs_library_items()
-        if items_data is None:
+        items_list = self.get_abs_library_items()
+        if items_list is None:
             return
 
         # Get me data
@@ -548,13 +557,6 @@ class AudiobookshelfAction(InterfaceAction):
             show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
             return
 
-        if isinstance(items_data, dict) and "results" in items_data:
-            items_list = items_data["results"]
-        elif isinstance(items_data, list):
-            items_list = items_data
-        else:
-            items_list = []
-
         filtered_items = [item for item in items_list if isinstance(item, dict)]
         sorted_items = sorted(filtered_items, key=lambda x: x.get('media', {}).get('metadata', {}).get('title', '').lower())
 
@@ -563,8 +565,9 @@ class AudiobookshelfAction(InterfaceAction):
             show_info(self.gui, "No Selection", "No books selected.")
             return
         summary = {'linked': 0, 'skipped': 0, 'failed': 0, 'details': []}
+        db = self.gui.current_db.new_api
         for book_id in selected_ids:
-            metadata = self.gui.current_db.new_api.get_metadata(book_id)
+            metadata = db.get_metadata(book_id)
             book_title = metadata.get('title', f'Book {book_id}')
             book_uuid = metadata.get('uuid')
             
@@ -580,7 +583,7 @@ class AudiobookshelfAction(InterfaceAction):
                         Audible_ASIN = selected_item.get('media').get('metadata').get('asin')
                         identifiers['audible'] = Audible_ASIN
                     metadata.set('identifiers', identifiers)
-                    self.gui.current_db.new_api.set_metadata(book_id, metadata, set_title=False, set_authors=False)
+                    db.set_metadata(book_id, metadata, set_title=False, set_authors=False)
                     summary['linked'] += 1
                     summary['details'].append({
                         'title': book_title,
@@ -603,6 +606,24 @@ class AudiobookshelfAction(InterfaceAction):
                 })
         message = (f"Link Audiobookshelf Book completed.\nBooks linked: {summary['linked']}\nBooks skipped: {summary['skipped']}")
         SyncCompletionDialog(self.gui, "Link Results", message, summary['details'], type="info").exec_()
+
+    def unlink_audiobookshelf_book(self):
+        selected_ids = self.gui.library_view.get_selected_ids()
+        if not selected_ids:
+            show_info(self.gui, "No Selection", "No books selected.")
+            return
+        log = []
+        db = self.gui.current_db.new_api
+        for book_id in selected_ids:
+            metadata = db.get_metadata(book_id)
+            identifiers = metadata.get('identifiers', {})
+            log.append({'title': metadata.get('title', ''), 'abs_id': identifiers.get('audiobookshelf_id', '')})
+            identifiers.pop('audiobookshelf_id', None)
+            metadata.set('identifiers', identifiers)
+            db.set_metadata(book_id, metadata, force_changes=True, set_title=False, set_authors=False)
+        SyncCompletionDialog(self.gui, "Unlinked From Audiobookshelf", 
+                             f"{len(selected_ids)} {'book has' if len(selected_ids) == 1 else 'books have'} been unlinked from Audiobookshelf.", 
+                             log, resultsColWidth=0, type="info").exec_()
 
     def get_abs_library_items(self):
         """Get all items from all Audiobookshelf libraries."""
@@ -674,7 +695,7 @@ class AudiobookshelfAction(InterfaceAction):
         return collections_dict, collections_map
 
 class SyncCompletionDialog(QDialog):
-    def __init__(self, parent=None, title="", msg="", results=None, type=None):
+    def __init__(self, parent=None, title="", msg="", results=None, resultsColWidth=150, type=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumWidth(800)
@@ -697,12 +718,13 @@ class SyncCompletionDialog(QDialog):
         message_label = QLabel(msg)
         message_label.setWordWrap(True)
         mainMessageLayout.addWidget(message_label)
+        mainMessageLayout.addStretch() # Left align the message/text
         layout.addLayout(mainMessageLayout)
         # Scrollable area for the table
         self.table_area = QScrollArea(self)
         self.table_area.setWidgetResizable(True)
         if results:
-            table = self.create_results_table(results)
+            table = self.create_results_table(results, resultsColWidth)
             self.table_area.setWidget(table)
             layout.addWidget(self.table_area)
         # Bottom Buttons
@@ -725,7 +747,7 @@ class SyncCompletionDialog(QDialog):
         bottomButtonLayout.addWidget(ok_button)
         layout.addLayout(bottomButtonLayout)
     
-    def create_results_table(self, results):
+    def create_results_table(self, results, resultsColWidth):
         # Get all possible headers from results
         all_headers = set()
         for result in results:
@@ -749,17 +771,21 @@ class SyncCompletionDialog(QDialog):
         table.setColumnCount(len(headers))
         table.setHorizontalHeaderLabels(headers)
 
-        # Set minimum width for each column
-        for i in range(len(headers)):
-            table.setColumnWidth(i, 150)
-
+        # Populate Table
         for row, result in enumerate(results):
             for col, key in enumerate(headers):
                 value = result.get(key, "")
                 item = QTableWidgetItem(str(value))
                 table.setItem(row, col, item)
                 item.setToolTip(str(value))
-        
+
+        # Set minimum width for each column
+        if resultsColWidth == 0:
+            table.resizeColumnsToContents()
+        else:
+            for i in range(len(headers)):
+                table.setColumnWidth(i, resultsColWidth)
+
         return table
 
 class LinkDialog(QDialog):
