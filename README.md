@@ -5,9 +5,10 @@ A calibre plugin to synchronize metadata from Audiobookshelf to calibre.
 ## Features
 
 - Sync metadata from Audiobookshelf to Calibre
+- Sync back changes from Calibre to Audiobookshelf
 - View reading progress from Audiobookshelf
 - Schedule automatic syncs
-- Quick link multiple books based on ISBN/ASIN matching
+- Quick link multiple books based on ASIN matching
 
 ## Installation
 
@@ -101,10 +102,12 @@ Enable scheduled sync in the plugin configuration to automatically sync metadata
 
 #### Quick Link Books
 
-Quick Linking attempts to match up books by ISBN and ASIN (Audible ASIN). NGL doesn't work well, if there are suggestions on how to improve this I'm all ears.
+Quick Linking attempts to link books that haven't been linked by matching up Audiobookshelf ASIN (Audible ASIN).  
+It searches Audible for a list of Audible ASINs that may match the title and author of the calibre book, and then
+checks if any Audiobookshelf book matches.
 
 1. Right-click the Audiobookshelf icon and select "Quick Link Books"
-2. Books will be automatically linked based on ISBN/ASIN matches
+2. Books will be automatically linked based on Audible ASIN matches
 
 ### Audiobooks Not in Calibre
 

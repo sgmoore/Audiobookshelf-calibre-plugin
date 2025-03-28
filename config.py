@@ -428,6 +428,7 @@ CONFIG.defaults['abs_url'] = 'http://localhost:13378'
 CONFIG.defaults['abs_key'] = ''
 CONFIG.defaults['scheduleSyncHour'] = 4
 CONFIG.defaults['scheduleSyncMinute'] = 0
+CONFIG.defaults['audibleRegion'] = '.com'
 
 if numeric_version >= (5, 5, 0):
     module_debug_print = partial(root_debug_print, ' audiobookshelf:config:', sep='')
@@ -458,8 +459,8 @@ class ConfigWidget(QWidget):
         layout.addWidget(self.create_separator())
         ps_header_label = QLabel(
             "This plugin allows calibre to pull metadata from the built-in Audiobookshelf API.\n"
-            "You must link the audiobook using either Quick Link (automatic by ASIN or ISBN) "
-            "or by selecting the correct book using the link feature.\n"
+            "You must link the audiobook using either Quick Link (intelligently by Audiobookshelf ) "
+            "ASIN and calibre title/author or by selecting the correct book using the link feature.\n"
             "This functionality can optionally be scheduled as a daily sync from within calibre. "
             "Enter scheduled time in military time (default is 4 AM local time).\n"
             "This plugin can also maintain bidirectional sync."
@@ -524,7 +525,16 @@ class ConfigWidget(QWidget):
         layout.addWidget(self.create_separator())
         identifer_label = QLabel('Enable additional Identifer Sync and add composite columns to view the identifers below.')
         layout.addWidget(identifer_label)
-        layout.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
+        audible_config_layout = QHBoxLayout()
+        audible_config_layout.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
+        audible_config_layout.addWidget(QLabel('Audible Region: '))
+        self.audible_region_comboBox = QComboBox()
+        self.audible_region_comboBox.addItems([".com", ".ca", ".co.uk", ".com.au", ".fr", ".de", ".co.jp", ".it", ".in", ".es", ".com.br"])
+        self.audible_region_comboBox.setCurrentText(CONFIG['audibleRegion'])
+        self.audible_region_comboBox.setMinimumWidth(75)
+        self.audible_region_comboBox.wheelEvent = lambda event: event.ignore()
+        audible_config_layout.addWidget(self.audible_region_comboBox)
+        layout.addLayout(audible_config_layout)
         identifier_column_layout = QHBoxLayout()
         abs_id_button = QPushButton('Audiobookshelf ID', self)
         abs_id_button.clicked.connect(lambda: self.add_composite_column('#abs_id', 'Audiobookshelf ID', 'audiobookshelf_id'))
@@ -581,6 +591,10 @@ class ConfigWidget(QWidget):
             CONFIG['scheduleSyncMinute'] != self.schedule_minute_input.value()
         )
 
+        CONFIG['scheduleSyncHour'] = self.schedule_hour_input.value()
+        CONFIG['scheduleSyncMinute'] = self.schedule_minute_input.value()
+        CONFIG['audibleRegion'] = self.audible_region_comboBox.currentText()
+
         for config_name, metadata in CUSTOM_COLUMN_DEFAULTS.items():
             CONFIG[config_name] = metadata['comboBox'].get_selected_column()
 
@@ -590,13 +604,10 @@ class ConfigWidget(QWidget):
         try:
             from calibre.ebooks.metadata.sources.prefs import msprefs
             id_link_rules = msprefs['id_link_rules']
-            id_link_rules['audible'] = [['Audible', f'https://www.audible.com/pd/{{id}}']]
+            id_link_rules['audible'] = [['Audible', f"https://www.audible{CONFIG['audibleRegion']}/pd/{{id}}"]]
             msprefs['id_link_rules'] = id_link_rules
         except ImportError:
             print('Could not add identifer link rule for Audible')  
-
-        CONFIG['scheduleSyncHour'] = self.schedule_hour_input.value()
-        CONFIG['scheduleSyncMinute'] = self.schedule_minute_input.value()
 
         debug_print('new CONFIG = ', CONFIG)
         if needRestart and show_restart_warning('Changes have been made that require a restart to take effect.\nRestart now?'):

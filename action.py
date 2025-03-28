@@ -449,22 +449,10 @@ class AudiobookshelfAction(InterfaceAction):
                 'Accept': 'application/json',
                 'User-Agent': f'CalibreAudiobookshelfSync/{self.version}',
             }
-            try:
-                req = Request(f"https://audimeta.de/search?{urllib.parse.urlencode(params)}", headers=headers)
-                with urlopen(req, timeout=20) as response:
-                    resp_data = response.read()
-                    return json.loads(resp_data.decode('utf-8'))
-            except Exception:
-                params = {
-                        'title': params['localTitle'],
-                        'author': params['localAuthor'],
-                        'region': params['region'],
-                        #'limit': 20
-                    }
-                req = Request(f"https://audimeta.de/search?{urllib.parse.urlencode(params)}", headers=headers)
-                with urlopen(req, timeout=20) as response:
-                    resp_data = response.read()
-                    return json.loads(resp_data.decode('utf-8'))
+            req = Request(f"https://api.audible{CONFIG['audibleRegion']}/1.0/catalog/products?{urllib.parse.urlencode(params)}", headers=headers)
+            with urlopen(req, timeout=20) as response:
+                resp_data = response.read()
+                return json.loads(resp_data.decode('utf-8'))
 
         abs_items = self.get_abs_library_items()
         if abs_items is None:
@@ -479,7 +467,7 @@ class AudiobookshelfAction(InterfaceAction):
         abs_asin_set = set(abs_asin_index.keys())
 
         db = self.gui.current_db.new_api
-        all_book_ids = db.search('not identifiers:"=audiobookshelf_id:"')
+        all_book_ids = list(db.search('not identifiers:"=audiobookshelf_id:"'))
         num_linked = 0
         num_failed = 0
         results = []
@@ -490,13 +478,12 @@ class AudiobookshelfAction(InterfaceAction):
             if title and authors and authors[0] != 'Unknown':
                 try:
                     response = audible_search({
-                        'localTitle': title,
-                        'localAuthor': authors[0],
-                        'region': 'US',
-                        #'limit': 20
+                        'title': title,
+                        'author': authors[0],
+                        'num_results': 25,
                     })
 
-                    asin_overlap = {item['asin'] for item in response}.intersection(abs_asin_set)
+                    asin_overlap = {item['asin'] for item in response['products']}.intersection(abs_asin_set)
                     if asin_overlap:
                         if len(asin_overlap) == 1:
                             matched_asin = next(iter(asin_overlap))
@@ -515,19 +502,19 @@ class AudiobookshelfAction(InterfaceAction):
                                 num_failed += 1
                                 results.append({
                                     'title': metadata.get('title', f'Book {book_id}'),
-                                    'error': 'Multiple Audiobookshelf books with same ASIN, you must manually match'
+                                    'error': f"{len(abs_id_list)} Audiobookshelf books with same ASIN, you must manually match"
                                 })
                         else:
                             num_failed += 1
                             results.append({
                                 'title': metadata.get('title', f'Book {book_id}'),
-                                'error': 'Multiple possible matches found, you must manually match'
+                                'error': f"{len(asin_overlap)} possible matches found, you must manually match"
                             })
                     else:
                         num_failed += 1
                         results.append({
                             'title': metadata.get('title', f'Book {book_id}'),
-                            'error': "Audible search found books but none of them matched"
+                            'error': f"Audible search found {response['total_results']} books and I checked {len(response['products'])} of them but none of them matched"
                         })
                 except Exception:
                     num_failed += 1
