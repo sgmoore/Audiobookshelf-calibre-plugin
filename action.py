@@ -16,7 +16,6 @@ from PyQt5.Qt import (
     QTableWidget,
     QTableWidgetItem,
     QScrollArea,
-    QUrl,
     QTimer,
     QTime,
     QColor,
@@ -150,7 +149,7 @@ class AudiobookshelfAction(InterfaceAction):
         self.interface_action_base_plugin.do_user_config(self.gui)
 
     def show_readme(self):
-        open_url(QUrl('https://github.com/jbhul/Audiobookshelf-calibre-plugin#readme'))
+        open_url('https://github.com/jbhul/Audiobookshelf-calibre-plugin#readme')
 
     def show_about(self):
         text = get_resources('about.txt').decode('utf-8')
@@ -171,17 +170,14 @@ class AudiobookshelfAction(InterfaceAction):
     def show_not_in_calibre(self):
         abs_items = self.get_abs_library_items()
         if abs_items is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf library data, "
+            "does user have library permissions or is Audiobookshelf empty?")
             return
 
         # Get all linked ABS IDs from Calibre
         db = self.gui.current_db.new_api
         all_book_ids = db.search('identifiers:"=audiobookshelf_id:"')
-        linked_abs_ids = set()
-        
-        for book_id in all_book_ids:
-            metadata = db.get_metadata(book_id)
-            identifiers = metadata.get('identifiers', {})
-            linked_abs_ids.add(identifiers['audiobookshelf_id'])
+        linked_abs_ids = {db.get_metadata(book_id).get('identifiers', {}).get('audiobookshelf_id') for book_id in all_book_ids}
 
         # Filter and sort unlinked items
         unlinked_items = []
@@ -192,16 +188,23 @@ class AudiobookshelfAction(InterfaceAction):
                 author = metadata.get('authorName', '')
                 if title:  # Only include items with titles
                     unlinked_items.append({
+                        'hidden_id': item.get('id'),
                         'title': title,
-                        'author': author
+                        'author': author,
                     })
 
         # Sort by title
         unlinked_items.sort(key=lambda x: x['title'].lower())
 
         # Show results
-        message = f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library"
-        SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, type="info").exec_()
+        message = (f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library.\n"
+        "Double Click the title to open book in Audiobookshelf")
+        dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, resultsColWidth=0, type="info")
+        def on_cell_double_clicked(row, col):
+            if col == 0:
+                open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[row].get('hidden_id')}")
+        dialog.table_area.findChild(QTableWidget).cellDoubleClicked.connect(on_cell_double_clicked)
+        dialog.exec_()
 
     def scheduled_sync(self):
         def scheduledTask():
@@ -329,13 +332,21 @@ class AudiobookshelfAction(InterfaceAction):
         self.Syncing = True
         server_url = CONFIG.get('abs_url', 'http://localhost:13378')
         api_key = CONFIG.get('abs_key', '')
-        
-        items_list = self.get_abs_library_items()
-        if items_list is None:
+
+        db = self.gui.current_db.new_api
+        all_book_ids = db.search('identifiers:"=audiobookshelf_id:"')
+        if not all_book_ids:
+            show_info(self.gui, "No Linked Books", "Calibre library has no linked books, try using Quick Link or manually linking books.")
+            return
+
+        abs_items = self.get_abs_library_items()
+        if abs_items is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf library data, "
+            "does user have library permissions or is Audiobookshelf empty?")
             return
         # Build dictionary mapping item id to item data (from lib_items)
         items_dict = {}
-        for item in items_list:
+        for item in abs_items:
             item_id = item.get('id')
             if item_id:
                 items_dict[item_id] = item
@@ -360,13 +371,10 @@ class AudiobookshelfAction(InterfaceAction):
         if CONFIG.get('column_audiobook_collections'):
             collections_dict = self.get_abs_collections(server_url, api_key)[0]
 
-        db = self.gui.current_db.new_api
-        all_book_ids = db.search('identifiers:"=audiobookshelf_id:"')
         num_success = 0
         num_fail = 0
         num_skip = 0
         results = []
-
         for book_id in all_book_ids:
             metadata = db.get_metadata(book_id)
             book_uuid = metadata.get('uuid')
@@ -463,8 +471,16 @@ class AudiobookshelfAction(InterfaceAction):
                 resp_data = response.read()
                 return json.loads(resp_data.decode('utf-8'))
 
+        db = self.gui.current_db.new_api
+        all_book_ids = list(db.search('not identifiers:"=audiobookshelf_id:"'))
+        if not all_book_ids:
+            show_info(self.gui, "All Books Linked", "Calibre library has no linked books, try using Quick Link or manually linking books.")
+            return
+
         abs_items = self.get_abs_library_items()
         if abs_items is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf library data, "
+            "does user have library permissions or is Audiobookshelf empty?")
             return
 
         abs_asin_index = {} # key of ASIN and value of list of dict with keys abs_id and abs_title
@@ -475,8 +491,6 @@ class AudiobookshelfAction(InterfaceAction):
                 abs_asin_index.setdefault(abs_asin, []).append({'abs_id': item.get('id'), 'abs_title': abs_title})
         abs_asin_set = set(abs_asin_index.keys())
 
-        db = self.gui.current_db.new_api
-        all_book_ids = list(db.search('not identifiers:"=audiobookshelf_id:"'))
         num_linked = 0
         num_failed = 0
         results = []
@@ -538,13 +552,13 @@ class AudiobookshelfAction(InterfaceAction):
                     'error': "Book is missing title and/or author which are required for quick link"
                 })
         message = (f"Quick Link Books completed.\nBooks linked: {num_linked}\nBooks failed: {num_failed}")
-        if num_linked+num_failed == 0:
-            message += '\n\nNo Books Needing To Be Linked'
         SyncCompletionDialog(self.gui, "Quick Link Results", message, results, type="info").exec_()
 
     def link_audiobookshelf_book(self):
-        items_list = self.get_abs_library_items()
-        if items_list is None:
+        abs_items = self.get_abs_library_items()
+        if abs_items is None:
+            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf library data, "
+            "does user have library permissions or is Audiobookshelf empty?")
             return
 
         # Get me data
@@ -557,7 +571,7 @@ class AudiobookshelfAction(InterfaceAction):
             show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
             return
 
-        filtered_items = [item for item in items_list if isinstance(item, dict)]
+        filtered_items = [item for item in abs_items if isinstance(item, dict)]
         sorted_items = sorted(filtered_items, key=lambda x: x.get('media', {}).get('metadata', {}).get('title', '').lower())
 
         selected_ids = self.gui.library_view.get_selected_ids()
@@ -701,6 +715,8 @@ class SyncCompletionDialog(QDialog):
         self.setMinimumWidth(800)
         self.setMinimumHeight(800)
         layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
         # Main Message Area
         mainMessageLayout = QHBoxLayout()
         type_icon = {
@@ -710,23 +726,23 @@ class SyncCompletionDialog(QDialog):
         }.get(type)
         if type_icon is not None:
             icon = QIcon.ic(f'{type_icon}.png')
-            mainMessageLayout.setSpacing(10)
             self.setWindowIcon(icon)
             icon_widget = QLabel(self)
             icon_widget.setPixmap(icon.pixmap(64, 64))
             mainMessageLayout.addWidget(icon_widget)
         message_label = QLabel(msg)
-        message_label.setWordWrap(True)
         mainMessageLayout.addWidget(message_label)
         mainMessageLayout.addStretch() # Left align the message/text
         layout.addLayout(mainMessageLayout)
-        # Scrollable area for the table
-        self.table_area = QScrollArea(self)
-        self.table_area.setWidgetResizable(True)
+
+        # Table in scrollable area if results are provided
         if results:
+            self.table_area = QScrollArea(self)
+            self.table_area.setWidgetResizable(True)
             table = self.create_results_table(results, resultsColWidth)
             self.table_area.setWidget(table)
             layout.addWidget(self.table_area)
+
         # Bottom Buttons
         bottomButtonLayout = QHBoxLayout()
         if results:
@@ -748,10 +764,8 @@ class SyncCompletionDialog(QDialog):
         layout.addLayout(bottomButtonLayout)
     
     def create_results_table(self, results, resultsColWidth):
-        # Get all possible headers from results
-        all_headers = set()
-        for result in results:
-            all_headers.update(result.keys())
+        # Get all possible headers from results (ignoring hidden_ prefix) and save as set
+        all_headers = {key for result in results for key in result.keys() if not key.startswith('hidden_')}
         
         # Organize headers: title first, custom columns in middle, error last
         headers = ['title']
@@ -776,12 +790,17 @@ class SyncCompletionDialog(QDialog):
             for col, key in enumerate(headers):
                 value = result.get(key, "")
                 item = QTableWidgetItem(str(value))
-                table.setItem(row, col, item)
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 item.setToolTip(str(value))
+                table.setItem(row, col, item)
 
         # Set minimum width for each column
         if resultsColWidth == 0:
             table.resizeColumnsToContents()
+            # Enforce a maximum width of 350 for each column
+            for i in range(len(headers)):
+                if table.columnWidth(i) > 350: 
+                    table.setColumnWidth(i, 350)
         else:
             for i in range(len(headers)):
                 table.setColumnWidth(i, resultsColWidth)
@@ -822,7 +841,7 @@ class LinkDialog(QDialog):
 
         self.table = QTableWidget(len(items), 3)
         self.table.setHorizontalHeaderLabels(["Title", "Author", "Reading/Read"])
-        
+
         # Get calibre book details for comparison
         calibre_title = self.calibre_metadata.get('title', '').lower() if self.calibre_metadata else ''
         calibre_authors = self.calibre_metadata.get('authors', []) if self.calibre_metadata else []
@@ -860,7 +879,7 @@ class LinkDialog(QDialog):
         if me_data and 'mediaProgress' in me_data:
             reading_ids = {prog.get('libraryItemId') for prog in me_data['mediaProgress'] if prog.get('libraryItemId')}
 
-        for i, item in enumerate(sorted_items):
+        for row, item in enumerate(sorted_items):
             metadata = item.get('media', {}).get('metadata', {})
             abs_title = metadata.get('title', '')
             abs_author = metadata.get('authorName', '')
@@ -871,7 +890,7 @@ class LinkDialog(QDialog):
             if abs_title.lower() == calibre_title:
                 title_item.setBackground(highlight_color)
                 title_item.setForeground(QColor(0, 0, 0))  # Force black text
-            self.table.setItem(i, 0, title_item)
+            self.table.setItem(row, 0, title_item)
 
             # Create author item  
             author_item = QTableWidgetItem(abs_author)
@@ -879,14 +898,14 @@ class LinkDialog(QDialog):
             if abs_author.lower() in calibre_authors:
                 author_item.setBackground(highlight_color)
                 author_item.setForeground(QColor(0, 0, 0))  # Force black text
-            self.table.setItem(i, 1, author_item)
+            self.table.setItem(row, 1, author_item)
 
             # Create reading status item
             status_item = QTableWidgetItem()
             status_item.setFlags(status_item.flags() & ~Qt.ItemIsEditable)
             if item.get('id') in reading_ids:
                 status_item.setIcon(checkmark_icon)
-            self.table.setItem(i, 2, status_item)
+            self.table.setItem(row, 2, status_item)
 
         self.table.resizeColumnsToContents()
         self.table.setColumnWidth(0, 300)
