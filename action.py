@@ -160,28 +160,19 @@ class AudiobookshelfAction(InterfaceAction):
         return about_dialog.exec_()
 
     def show_not_in_calibre(self):
-        items_data = self.get_abs_library_items()
-        if items_data is None:
+        abs_items = self.get_abs_library_items()
+        if abs_items is None:
             return
-
-        # Extract items list
-        if isinstance(items_data, dict) and "results" in items_data:
-            abs_items = items_data["results"]
-        elif isinstance(items_data, list):
-            abs_items = items_data
-        else:
-            abs_items = []
 
         # Get all linked ABS IDs from Calibre
         db = self.gui.current_db.new_api
-        all_book_ids = db.search('')
+        all_book_ids = db.search('identifiers:"=audiobookshelf_id:"')
         linked_abs_ids = set()
         
         for book_id in all_book_ids:
             metadata = db.get_metadata(book_id)
             identifiers = metadata.get('identifiers', {})
-            if 'audiobookshelf_id' in identifiers:
-                linked_abs_ids.add(identifiers['audiobookshelf_id'])
+            linked_abs_ids.add(identifiers['audiobookshelf_id'])
 
         # Filter and sort unlinked items
         unlinked_items = []
@@ -361,7 +352,7 @@ class AudiobookshelfAction(InterfaceAction):
             collections_dict = self.get_abs_collections(server_url, api_key)[0]
 
         db = self.gui.current_db.new_api
-        all_book_ids = db.search('')
+        all_book_ids = db.search('identifiers:"=audiobookshelf_id:"')
         num_success = 0
         num_fail = 0
         num_skip = 0
@@ -372,8 +363,6 @@ class AudiobookshelfAction(InterfaceAction):
             book_uuid = metadata.get('uuid')
             identifiers = metadata.get('identifiers', {})
             abs_id = identifiers.get('audiobookshelf_id')
-            if not abs_id:
-                continue  # Skip books that are not linked
             item_data = items_dict.get(abs_id)
             if not item_data:
                 results.append({'title': metadata.get('title', f'Book {book_id}'), 'error': 'Audiobookshelf item not found'})
@@ -490,17 +479,12 @@ class AudiobookshelfAction(InterfaceAction):
         abs_asin_set = set(abs_asin_index.keys())
 
         db = self.gui.current_db.new_api
-        all_book_ids = db.search('')
+        all_book_ids = db.search('not identifiers:"=audiobookshelf_id:"')
         num_linked = 0
         num_failed = 0
         results = []
         for book_id in all_book_ids:
             metadata = db.get_metadata(book_id)
-            identifiers = metadata.get('identifiers', {})
-
-            if 'audiobookshelf_id' in identifiers:
-                continue  # already linked
-            
             title = metadata.get('title', 'None')
             authors = metadata.get('authors', [])
             if title and authors and authors[0] != 'Unknown':
@@ -518,6 +502,7 @@ class AudiobookshelfAction(InterfaceAction):
                             matched_asin = next(iter(asin_overlap))
                             abs_id_list = abs_asin_index.get(matched_asin)
                             if len(abs_id_list) == 1:
+                                identifiers = metadata.get('identifiers', {})
                                 identifiers['audiobookshelf_id'] = abs_id_list[0]['abs_id']
                                 metadata.set('identifiers', identifiers)
                                 db.set_metadata(book_id, metadata, set_title=False, set_authors=False)
