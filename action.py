@@ -4,6 +4,7 @@
 import json
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
+import urllib.parse
 
 from PyQt5.Qt import (
     QDialog,
@@ -454,27 +455,40 @@ class AudiobookshelfAction(InterfaceAction):
         self.Syncing = False
 
     def quick_link_books(self):
-        items_data = self.get_abs_library_items()
-        if items_data is None:
+        def audible_search(params):
+            headers = {
+                'Accept': 'application/json',
+                'User-Agent': f'CalibreAudiobookshelfSync/{self.version}',
+            }
+            try:
+                req = Request(f"https://audimeta.de/search?{urllib.parse.urlencode(params)}", headers=headers)
+                with urlopen(req, timeout=20) as response:
+                    resp_data = response.read()
+                    return json.loads(resp_data.decode('utf-8'))
+            except Exception:
+                params = {
+                        'title': params['localTitle'],
+                        'author': params['localAuthor'],
+                        'region': params['region'],
+                        #'limit': 20
+                    }
+                req = Request(f"https://audimeta.de/search?{urllib.parse.urlencode(params)}", headers=headers)
+                with urlopen(req, timeout=20) as response:
+                    resp_data = response.read()
+                    return json.loads(resp_data.decode('utf-8'))
+
+        abs_items = self.get_abs_library_items()
+        if abs_items is None:
             return
 
-        if isinstance(items_data, dict) and "results" in items_data:
-            abs_items = items_data["results"]
-        elif isinstance(items_data, list):
-            abs_items = items_data
-        else:
-            abs_items = []
-        isbn_index = {}
-        asin_index = {}
+        abs_asin_index = {} # key of ASIN and value of list of dict with keys abs_id and abs_title
         for item in abs_items:
-            media = item.get('media', {})
-            metadata_item = media.get('metadata', {})
-            isbn = metadata_item.get('isbn')
-            asin = metadata_item.get('asin')
-            if isbn:
-                isbn_index.setdefault(isbn, []).append(item)
-            if asin:
-                asin_index.setdefault(asin, []).append(item)
+            abs_asin = item.get('media', {}).get('metadata', {}).get('asin')
+            abs_title = item.get('media', {}).get('metadata', {}).get('title', 'Unknown Title')
+            if abs_asin:
+                abs_asin_index.setdefault(abs_asin, []).append({'abs_id': item.get('id'), 'abs_title': abs_title})
+        abs_asin_set = set(abs_asin_index.keys())
+
         db = self.gui.current_db.new_api
         all_book_ids = db.search('')
         num_linked = 0
@@ -483,39 +497,68 @@ class AudiobookshelfAction(InterfaceAction):
         for book_id in all_book_ids:
             metadata = db.get_metadata(book_id)
             identifiers = metadata.get('identifiers', {})
+
             if 'audiobookshelf_id' in identifiers:
                 continue  # already linked
-            book_isbn = identifiers.get('isbn')
-            book_asin = identifiers.get('asin')
-            audible_asin = identifiers.get('audible')
-            amazon_asin = identifiers.get('amazon')
-            matched_item = None
-            if book_isbn and book_isbn in isbn_index and len(isbn_index[book_isbn]) == 1:
-                matched_item = isbn_index[book_isbn][0]
-            elif book_asin and book_asin in asin_index and len(asin_index[book_asin]) == 1:
-                matched_item = asin_index[book_asin][0]
-            elif audible_asin and audible_asin in asin_index and len(asin_index[audible_asin]) == 1:
-                matched_item = asin_index[audible_asin][0]
-            elif amazon_asin and amazon_asin in asin_index and len(asin_index[amazon_asin]) == 1:
-                matched_item = asin_index[amazon_asin][0]
-            if matched_item:
-                abs_id = matched_item.get('id')
-                abs_title = matched_item.get('media', {}).get('metadata', {}).get('title', 'Unknown Title')
-                identifiers['audiobookshelf_id'] = abs_id
-                metadata.set('identifiers', identifiers)
-                db.set_metadata(book_id, metadata, set_title=False, set_authors=False)
-                num_linked += 1
-                results.append({
-                    'title': metadata.get('title', f'Book {book_id}'),
-                    'linked': f'Linked to "{abs_title}"'
-                })
+            
+            title = metadata.get('title', 'None')
+            authors = metadata.get('authors', [])
+            if title and authors and authors[0] != 'Unknown':
+                try:
+                    response = audible_search({
+                        'localTitle': title,
+                        'localAuthor': authors[0],
+                        'region': 'US',
+                        #'limit': 20
+                    })
+
+                    asin_overlap = {item['asin'] for item in response}.intersection(abs_asin_set)
+                    if asin_overlap:
+                        if len(asin_overlap) == 1:
+                            matched_asin = next(iter(asin_overlap))
+                            abs_id_list = abs_asin_index.get(matched_asin)
+                            if len(abs_id_list) == 1:
+                                identifiers['audiobookshelf_id'] = abs_id_list[0]['abs_id']
+                                metadata.set('identifiers', identifiers)
+                                db.set_metadata(book_id, metadata, set_title=False, set_authors=False)
+                                num_linked += 1
+                                results.append({
+                                    'title': metadata.get('title', f'Book {book_id}'),
+                                    'linked': f"Linked to {abs_id_list[0]['abs_title']}"
+                                })
+                            else:
+                                num_failed += 1
+                                results.append({
+                                    'title': metadata.get('title', f'Book {book_id}'),
+                                    'error': 'Multiple Audiobookshelf books with same ASIN, you must manually match'
+                                })
+                        else:
+                            num_failed += 1
+                            results.append({
+                                'title': metadata.get('title', f'Book {book_id}'),
+                                'error': 'Multiple possible matches found, you must manually match'
+                            })
+                    else:
+                        num_failed += 1
+                        results.append({
+                            'title': metadata.get('title', f'Book {book_id}'),
+                            'error': "Audible search found books but none of them matched"
+                        })
+                except Exception:
+                    num_failed += 1
+                    results.append({
+                        'title': metadata.get('title', f'Book {book_id}'),
+                        'error': "Couldn't find any Audible audiobooks matching the title and author"
+                    })
             else:
                 num_failed += 1
                 results.append({
                     'title': metadata.get('title', f'Book {book_id}'),
-                    'error': 'No unique match found'
+                    'error': "Book is missing title and/or author which are required for quick link"
                 })
         message = (f"Quick Link Books completed.\nBooks linked: {num_linked}\nBooks failed: {num_failed}")
+        if num_linked+num_failed == 0:
+            message += '\n\nNo Books Needing To Be Linked'
         SyncCompletionDialog(self.gui, "Quick Link Results", message, results, type="info").exec_()
 
     def link_audiobookshelf_book(self):
