@@ -197,8 +197,8 @@ class AudiobookshelfAction(InterfaceAction):
         unlinked_items.sort(key=lambda x: x['title'].lower())
 
         # Show results
-        message = (f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library.\n"
-        "Double Click the title to open book in Audiobookshelf")
+        message = (f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library.\n\n"
+        "Double Click the title to open book in Audiobookshelf.")
         dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, resultsColWidth=0, type="info")
         def on_cell_double_clicked(row, col):
             if col == 0:
@@ -397,6 +397,7 @@ class AudiobookshelfAction(InterfaceAction):
                 if Audible_ASIN != current_Audible_ASIN:
                     identifiers['audible'] = Audible_ASIN
                     keys_values_to_update['identifiers'] = identifiers
+                    result['Audible ASIN'] = f"{current_Audible_ASIN if current_Audible_ASIN is not None else '-'} >> {Audible_ASIN}"
             
             # For each custom column, use api_source and data_location for lookup
             for config_name, col_meta in COLUMNS.items():
@@ -456,6 +457,7 @@ class AudiobookshelfAction(InterfaceAction):
         if not silent:
             message = (f"Total books processed: {len(results)}\n"
                        f"Updated: {num_success}\nSkipped: {num_skip}\nFailed: {num_fail}\n")
+            results.sort(key=lambda row: (not row.get('error', False), len(row) == 1, row['title'].lower())) # Sort by if error, if changes, then title
             SyncCompletionDialog(self.gui, "Sync Completed", message, results, type="info").exec_()
         
         self.Syncing = False
@@ -552,7 +554,8 @@ class AudiobookshelfAction(InterfaceAction):
                     'error': "Book is missing title and/or author which are required for quick link"
                 })
         message = (f"Quick Link Books completed.\nBooks linked: {num_linked}\nBooks failed: {num_failed}")
-        SyncCompletionDialog(self.gui, "Quick Link Results", message, results, type="info").exec_()
+        results.sort(key=lambda row: (not row.get('linked', False), row['title'].lower())) # Sort by if linked, then title
+        SyncCompletionDialog(self.gui, "Quick Link Results", message, results, resultsColWidth=0, type="info").exec_()
 
     def link_audiobookshelf_book(self):
         abs_items = self.get_abs_library_items()
@@ -709,7 +712,7 @@ class AudiobookshelfAction(InterfaceAction):
         return collections_dict, collections_map
 
 class SyncCompletionDialog(QDialog):
-    def __init__(self, parent=None, title="", msg="", results=None, resultsColWidth=150, type=None):
+    def __init__(self, parent=None, title="", msg="", results=None, resultsRowHeight=None, resultsColWidth=150, type=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumWidth(800)
@@ -739,7 +742,7 @@ class SyncCompletionDialog(QDialog):
         if results:
             self.table_area = QScrollArea(self)
             self.table_area.setWidgetResizable(True)
-            table = self.create_results_table(results, resultsColWidth)
+            table = self.create_results_table(results, resultsRowHeight, resultsColWidth)
             self.table_area.setWidget(table)
             layout.addWidget(self.table_area)
 
@@ -763,7 +766,7 @@ class SyncCompletionDialog(QDialog):
         bottomButtonLayout.addWidget(ok_button)
         layout.addLayout(bottomButtonLayout)
     
-    def create_results_table(self, results, resultsColWidth):
+    def create_results_table(self, results, resultsRowHeight, resultsColWidth):
         # Get all possible headers from results (ignoring hidden_ prefix) and save as set
         all_headers = {key for result in results for key in result.keys() if not key.startswith('hidden_')}
         
@@ -798,13 +801,24 @@ class SyncCompletionDialog(QDialog):
         if resultsColWidth == 0:
             table.resizeColumnsToContents()
             # Enforce a maximum width of 350 for each column
-            for i in range(len(headers)):
-                if table.columnWidth(i) > 350: 
-                    table.setColumnWidth(i, 350)
+            for col in range(len(headers)):
+                if table.columnWidth(col) > 350: 
+                    table.setColumnWidth(col, 350)
         else:
-            for i in range(len(headers)):
-                table.setColumnWidth(i, resultsColWidth)
+            for col in range(len(headers)):
+                table.setColumnWidth(col, resultsColWidth)
 
+        if resultsRowHeight:
+            if resultsRowHeight == 0:
+                table.resizeRowsToContents()
+                # Enforce a maximum height of 50 for each row
+                for row in range(len(results)):
+                    if table.rowHeight(row) > 50: 
+                        table.setRowHeight(row, 50)
+            else:
+                for row in range(len(results)):
+                    table.setRowHeight(row, resultsRowHeight)
+ 
         return table
 
 class LinkDialog(QDialog):
