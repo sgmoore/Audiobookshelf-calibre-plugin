@@ -338,7 +338,7 @@ class AudiobookshelfAction(InterfaceAction):
         api_key = CONFIG.get('abs_key', '')
 
         db = self.gui.current_db.new_api
-        all_book_ids = db.search('identifiers:"=audiobookshelf_id:"')
+        all_book_ids = list(db.search('identifiers:"=audiobookshelf_id:"'))
         if not all_book_ids:
             show_info(self.gui, "No Linked Books", "Calibre library has no linked books, try using Quick Link or manually linking books.")
             return
@@ -375,98 +375,121 @@ class AudiobookshelfAction(InterfaceAction):
         if CONFIG.get('column_audiobook_collections'):
             collections_dict = self.get_abs_collections(server_url, api_key)[0]
 
-        num_success = 0
-        num_fail = 0
-        num_skip = 0
-        results = []
-        for book_id in all_book_ids:
-            metadata = db.get_metadata(book_id)
-            book_uuid = metadata.get('uuid')
-            identifiers = metadata.get('identifiers', {})
-            abs_id = identifiers.get('audiobookshelf_id')
-            item_data = items_dict.get(abs_id)
-            if not item_data:
-                results.append({'title': metadata.get('title', f'Book {book_id}'), 'error': 'Audiobookshelf item not found'})
-                num_skip += 1
-                continue
-            progress_data = media_progress_dict.get(abs_id, {})
+        class ABSSyncWorker(QThread):
+            progress_update = pyqtSignal(int)
+            finished_signal = pyqtSignal(dict)
 
-            result = {'title': metadata.get('title', f'Book {book_id}')}
-            keys_values_to_update = {}
+            def __init__(self, action, db, book_ids):
+                super().__init__()
+                self.action = action
+                self.db = db
+                self.book_ids = book_ids
 
-            # Update identifiers if Audible ASIN sync is enabled
-            if CONFIG.get('checkbox_enable_Audible_ASIN_sync', False):
-                current_Audible_ASIN = identifiers.get('audible')
-                Audible_ASIN = item_data.get('media').get('metadata').get('asin')
-                if Audible_ASIN != current_Audible_ASIN:
-                    identifiers['audible'] = Audible_ASIN
-                    keys_values_to_update['identifiers'] = identifiers
-                    result['Audible ASIN'] = f"{current_Audible_ASIN if current_Audible_ASIN is not None else '-'} >> {Audible_ASIN}"
-            
-            # For each custom column, use api_source and data_location for lookup
-            for config_name, col_meta in COLUMNS.items():
-                column_name = CONFIG.get(config_name, '')
-                if not column_name:  # Skip if column not configured
-                    continue
-                
-                data_location = col_meta.get('data_location', [])
-                api_source = col_meta.get('api_source', '')
-                value = None
-                
-                if api_source == "mediaProgress":
-                    value = self.get_nested_value(progress_data, data_location)
-                    if col_meta['column_heading'] == "Audiobook Started" and value is None:
-                        value = True
-                elif api_source == "lib_items":
-                    value = self.get_nested_value(item_data, data_location)
-                elif api_source == "collections":
-                    value = collections_dict.get(abs_id, [])
-                
-                if value is not None:
-                    if 'transform' in col_meta and callable(col_meta['transform']):
-                        value = col_meta['transform'](value)
-                    if value is not None:
-                        old_value = metadata.get(column_name)
-                        if type(old_value) != type(value):
-                            # Convert value to the same type as old_value
-                            if isinstance(old_value, str) and isinstance(value, list):
-                                value = ', '.join(value)
-                            elif col_meta['datatype'] == 'series':
-                                if old_value == value[0] and metadata.get(f'{column_name}_index') == value[1]:
-                                    value = old_value
-                            elif isinstance(old_value, bool):
-                                value = bool(value)
-                            elif isinstance(old_value, int):
-                                value = int(value)
-                            elif isinstance(old_value, float):
-                                value = float(value)
-                            else: # Default to string
-                                value = str(value)
-                        if isinstance(value, str):
-                            value = value.strip()
-                        if old_value != value:
-                            keys_values_to_update[column_name] = value
-                            # Only add to result if there's an actual change
-                            result[col_meta['column_heading']] = f"{old_value if old_value is not None else '-'} >> {value}"
+            def run(self):
+                num_success = 0
+                num_fail = 0
+                num_skip = 0
+                results = []
+                for idx, book_id in enumerate(all_book_ids):
+                    metadata = db.get_metadata(book_id)
+                    book_uuid = metadata.get('uuid')
+                    identifiers = metadata.get('identifiers', {})
+                    abs_id = identifiers.get('audiobookshelf_id')
+                    item_data = items_dict.get(abs_id)
+                    if not item_data:
+                        results.append({'title': metadata.get('title', f'Book {book_id}'), 'error': 'Audiobookshelf item not found'})
+                        num_skip += 1
+                        continue
+                    progress_data = media_progress_dict.get(abs_id, {})
 
-            if keys_values_to_update:
-                status, detail = self.update_metadata(book_uuid, keys_values_to_update)
-                if status:
-                    num_success += 1
-                else:
-                    num_fail += 1
-                    result['error'] = detail.get('error', 'Unknown error')
-            else:
-                num_skip += 1
-            results.append(result)
+                    result = {'title': metadata.get('title', f'Book {book_id}')}
+                    keys_values_to_update = {}
 
-        if not silent:
-            message = (f"Total books processed: {len(results)}\n"
-                       f"Updated: {num_success}\nSkipped: {num_skip}\nFailed: {num_fail}\n")
-            results.sort(key=lambda row: (not row.get('error', False), len(row) == 1, row['title'].lower())) # Sort by if error, if changes, then title
-            SyncCompletionDialog(self.gui, "Sync Completed", message, results, type="info").exec_()
-        
-        self.Syncing = False
+                    # Update identifiers if Audible ASIN sync is enabled
+                    if CONFIG.get('checkbox_enable_Audible_ASIN_sync', False):
+                        current_Audible_ASIN = identifiers.get('audible')
+                        Audible_ASIN = item_data.get('media').get('metadata').get('asin')
+                        if Audible_ASIN != current_Audible_ASIN:
+                            identifiers['audible'] = Audible_ASIN
+                            keys_values_to_update['identifiers'] = identifiers
+                            result['Audible ASIN'] = f"{current_Audible_ASIN if current_Audible_ASIN is not None else '-'} >> {Audible_ASIN}"
+                    
+                    # For each custom column, use api_source and data_location for lookup
+                    for config_name, col_meta in COLUMNS.items():
+                        column_name = CONFIG.get(config_name, '')
+                        if not column_name:  # Skip if column not configured
+                            continue
+                        
+                        data_location = col_meta.get('data_location', [])
+                        api_source = col_meta.get('api_source', '')
+                        value = None
+                        
+                        if api_source == "mediaProgress":
+                            value = self.action.get_nested_value(progress_data, data_location)
+                            if col_meta['column_heading'] == "Audiobook Started" and value is None:
+                                value = True
+                        elif api_source == "lib_items":
+                            value = self.action.get_nested_value(item_data, data_location)
+                        elif api_source == "collections":
+                            value = collections_dict.get(abs_id, [])
+                        
+                        if value is not None:
+                            if 'transform' in col_meta and callable(col_meta['transform']):
+                                value = col_meta['transform'](value)
+                            if value is not None:
+                                old_value = metadata.get(column_name)
+                                if type(old_value) != type(value):
+                                    # Convert value to the same type as old_value
+                                    if isinstance(old_value, str) and isinstance(value, list):
+                                        value = ', '.join(value)
+                                    elif col_meta['datatype'] == 'series':
+                                        if old_value == value[0] and metadata.get(f'{column_name}_index') == value[1]:
+                                            value = old_value
+                                    elif isinstance(old_value, bool):
+                                        value = bool(value)
+                                    elif isinstance(old_value, int):
+                                        value = int(value)
+                                    elif isinstance(old_value, float):
+                                        value = float(value)
+                                    else: # Default to string
+                                        value = str(value)
+                                if isinstance(value, str):
+                                    value = value.strip()
+                                if old_value != value:
+                                    keys_values_to_update[column_name] = value
+                                    # Only add to result if there's an actual change
+                                    result[col_meta['column_heading']] = f"{old_value if old_value is not None else '-'} >> {value}"
+
+                    if keys_values_to_update:
+                        status, detail = self.action.update_metadata(book_uuid, keys_values_to_update)
+                        if status:
+                            num_success += 1
+                        else:
+                            num_fail += 1
+                            result['error'] = detail.get('error', 'Unknown error')
+                    else:
+                        num_skip += 1
+                    results.append(result)
+                    self.progress_update.emit(idx + 1)
+                self.finished_signal.emit({'results': results, 'num_success': num_success, 'num_fail': num_fail, 'num_skip': num_skip})
+
+        startTime = time.perf_counter()
+        self.absSyncWorker = ABSSyncWorker(self, db, all_book_ids)
+        progress_dialog = None
+        if not silent and len(all_book_ids)>25:
+            progress_dialog = ProgressDialog(self.gui, "Updating Metadata...", len(all_book_ids))
+            progress_dialog.show()
+            self.absSyncWorker.progress_update.connect(progress_dialog.setValue)
+        def on_finished(res):
+            self.Syncing = False
+            if not silent:
+                if progress_dialog:
+                    progress_dialog.close()
+                message = (f"Total books processed: {len(res['results'])}\nUpdated: {res['num_success']}\nSkipped: {res['num_skip']}\nFailed: {res['num_fail']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds.")
+                res['results'].sort(key=lambda row: (not row.get('error', False), len(row) == 1, row['title'].lower())) # Sort by if error, if changes, then title
+                SyncCompletionDialog(self.gui, "Sync Completed", message, res['results'], type="info").show()
+        self.absSyncWorker.finished_signal.connect(on_finished)
+        self.absSyncWorker.start()
 
     def quick_link_books(self):
         def audible_search(params):
@@ -572,7 +595,6 @@ class AudiobookshelfAction(InterfaceAction):
                     self.progress_update.emit(idx + 1)
                 self.finished_signal.emit({'results': results, 'num_linked': num_linked, 'num_failed': num_failed})
 
-        # Store worker as an instance attribute to prevent premature garbage collection
         startTime = time.perf_counter()
         self.quickLinkWorker = QuickLinkWorker(self, db, all_book_ids)
         progress_dialog = None

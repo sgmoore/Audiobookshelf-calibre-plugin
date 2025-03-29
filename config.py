@@ -95,7 +95,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('A "Text" column to store the narrator name(s) from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'narratorName'],
-        'transform': (lambda value: [narrator.strip() for narrator in value.split(',')]),
+        'transform': (lambda value: None if not value else [narrator.strip() for narrator in value.split(',')]),
     },
     'column_audiobook_author': {
         'column_heading': _("Audiobook Author"),
@@ -108,7 +108,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('A "Text" column to store the author name(s) from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'authorName'],
-        'transform': (lambda value: [author.strip() for author in value.split(',')]),
+        'transform': (lambda value: None if not value else [author.strip() for author in value.split(',')]),
     },
     'column_audiobook_series': {
         'column_heading': _("Audiobook Series"),
