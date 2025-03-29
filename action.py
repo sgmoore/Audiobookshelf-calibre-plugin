@@ -438,6 +438,8 @@ class AudiobookshelfAction(InterfaceAction):
                                 value = float(value)
                             else: # Default to string
                                 value = str(value)
+                        if isinstance(value, str):
+                            value = value.strip()
                         if old_value != value:
                             keys_values_to_update[column_name] = value
                             # Only add to result if there's an actual change
