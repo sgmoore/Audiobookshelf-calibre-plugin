@@ -35,7 +35,8 @@ the **create new columns** option in the config dropdowns.
    - Server URL (default: http://localhost:13378)
    - [API Key](https://api.audiobookshelf.org/#introduction:~:text=You%20can%20find%20your%20API%20token%20by%20logging%20into%20the%20Audiobookshelf%20web%20app%20as%20an%20admin%2C%20go%20to%20the%20config%20%E2%86%92%20users%20page%2C%20and%20click%20on%20your%20account.)
    - Optionally set up scheduled sync
-3. Configure columns and scheduled sync settings
+3. Configure columns and other settings
+4. Link Books and Sync
 
 ### Available Columns
 <details>
@@ -61,7 +62,7 @@ the **create new columns** option in the config dropdowns.
 | Audiobook File Count      | Number of files that comprise the audiobook                   | Integer |
 | Audiobook Chapters        | Number of chapters in the audiobook                           | Integer |
 ||||
-| Audiobook Shelf Library   | Audiobookshelf Library the audiobook is located in            | Text   |
+| Audiobookshelf Library    | Audiobookshelf Library the audiobook is located in            | Text   |
 | Audiobookshelf Date Added | The date the audiobook was added to Audiobookshelf            | Date   |
 | Audiobookshelf Full Path  | Full path to the audiobook                                    | Text   |
 | Audiobookshelf Relative Path | Relative Path of the audiobook                             | Text   |
@@ -86,7 +87,7 @@ the **create new columns** option in the config dropdowns.
 
 ### Sync
 
-1. Click the Audiobookshelf icon in the toolbar or right-click and select "Sync from Audiobookshelf"
+Click the Audiobookshelf icon in the toolbar or right-click and select "Sync from Audiobookshelf"
 
 #### Scheduled Sync
 
@@ -125,7 +126,7 @@ This plugin allows calibre to push metadata back to Audiobookshelf when changed 
 Any of the columns with a * are able to be easily sync'd back to Audiobookshelf.  
 This feature is offered with the disclaimer that this will edit your Audiobooshelf database.
 Make sure you have Audiobookshelf backups enabled in case this borks anything up, which it shouldn't but you never know.  
-For Collections/Playlists this plugin will not create new ones, only update existing.
+For Collections/Playlists, this plugin will not create new ones, only update existing.
 
 ## Support
 
