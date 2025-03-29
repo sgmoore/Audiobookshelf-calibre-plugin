@@ -410,6 +410,11 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
         'config_label': 'Enable Audible ASIN Sync',
         'config_tool_tip': 'Enable sync of the Audible identifier and Audible link.',
     },
+    'checkbox_cache_QuickLink_history': {
+        'config_label': 'Cache QuickLink History',
+        'config_tool_tip': "Stores the id of calibre books that failed to QuickLink and doesn't try to QuickLink them again.",
+        'default': True,
+    },
     'checkbox_enable_writeback': {
         'config_label': 'Enable Writeback',
         'config_tool_tip': 'If columns marked with a * are changed in calibre, update ABS.',
@@ -417,18 +422,18 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
 }
 
 CONFIG = JSONConfig(os.path.join('plugins', 'Audiobookshelf Sync.json'))
-# Set defaults for all custom columns
-for config_name in CUSTOM_COLUMN_DEFAULTS:
-    CONFIG.defaults[config_name] = ''
-# Set defaults for checkboxes
-for config_name in CHECKBOXES:
-    CONFIG.defaults[config_name] = False
-# Set other defaults
+# Set specific defaults
 CONFIG.defaults['abs_url'] = 'http://localhost:13378'
 CONFIG.defaults['abs_key'] = ''
 CONFIG.defaults['scheduleSyncHour'] = 4
 CONFIG.defaults['scheduleSyncMinute'] = 0
 CONFIG.defaults['audibleRegion'] = '.com'
+# Set defaults for all custom columns
+for config_name in CUSTOM_COLUMN_DEFAULTS:
+    CONFIG.defaults[config_name] = ''
+# Set defaults for checkboxes
+for config_name in CHECKBOXES:
+    CONFIG.defaults[config_name] = CHECKBOXES[config_name].get('default', False)
 
 if numeric_version >= (5, 5, 0):
     module_debug_print = partial(root_debug_print, ' audiobookshelf:config:', sep='')
@@ -527,6 +532,7 @@ class ConfigWidget(QWidget):
         layout.addWidget(identifer_label)
         audible_config_layout = QHBoxLayout()
         audible_config_layout.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
+        audible_config_layout.addLayout(self.add_checkbox('checkbox_cache_QuickLink_history'))
         audible_config_layout.addWidget(QLabel('Audible Region: '))
         self.audible_region_comboBox = QComboBox()
         self.audible_region_comboBox.addItems([".com", ".ca", ".co.uk", ".com.au", ".fr", ".de", ".co.jp", ".it", ".in", ".es", ".com.br"])

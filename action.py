@@ -508,6 +508,14 @@ class AudiobookshelfAction(InterfaceAction):
             show_info(self.gui, "All Books Linked", "All the books in the calibre library have already been linked, this function won't do anything.")
             return
 
+        if CONFIG.get('checkbox_cache_QuickLink_history', False):
+            QLCache = JSONConfig('plugins/Audiobookshelf QL Cache.json')
+            cacheList = QLCache.get('cache', [])
+            all_book_ids = [book_id for book_id in all_book_ids if book_id not in cacheList]
+            if not all_book_ids:
+                show_info(self.gui, "All Books Linked or Tried", "All the books in the calibre library have already been linked or have already failed to QuickLink.")
+                return
+
         abs_items = self.get_abs_library_items()
         if abs_items is None:
             show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf library data, does user have library permissions or is Audiobookshelf empty?")
@@ -578,7 +586,8 @@ class AudiobookshelfAction(InterfaceAction):
                                 num_failed += 1
                                 results.append({
                                     'title': metadata.get('title', f'Book {book_id}'),
-                                    'error': f"Audible search found {response['total_results']} books; {len(response['products'])} checked; none matched"
+                                    'error': f"Audible search found {response['total_results']} books; {len(response['products'])} checked; none matched",
+                                    'hidden_id': book_id
                                 })
                         except Exception:
                             num_failed += 1
@@ -605,6 +614,9 @@ class AudiobookshelfAction(InterfaceAction):
         def on_finished(res):
             if progress_dialog:
                 progress_dialog.close()
+            if CONFIG.get('checkbox_cache_QuickLink_history', False):
+                cacheList.extend([book['hidden_id'] for book in res['results'] if 'hidden_id' in book])
+                QLCache['cache'] = cacheList
             message = f"Quick Link Books completed.\nBooks linked: {res['num_linked']}\nBooks failed: {res['num_failed']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds."
             res['results'].sort(key=lambda row: (not row.get('linked', False), row['title'].lower())) # Sort by if linked, then title
             SyncCompletionDialog(self.gui, "Quick Link Results", message, res['results'], resultsColWidth=0, type="info").show()
