@@ -104,14 +104,16 @@ Enable scheduled sync in the plugin configuration to automatically sync metadata
 
 Quick Linking attempts to link books that haven't been linked by matching up Audiobookshelf ASIN (Audible ASIN).  
 It searches Audible for a list of Audible ASINs that may match the title and author of the calibre book, and then
-checks if any Audiobookshelf book matches.
+checks if any Audiobookshelf book matches.  
+By default QuickLink saves a list of calibre books it failed to match (due to no ASIN match) which is more time and API efficient.
 
 1. Right-click the Audiobookshelf icon and select "Quick Link Books"
 2. Books will be automatically linked based on Audible ASIN matches
 
 ### Audiobooks Not in Calibre
 
-Builds a table of audiobooks in Audiobookshelf that aren't linked to a book in calibre.
+Builds a table of audiobooks in Audiobookshelf that aren't linked to a book in calibre.  
+Double click the title to open the book in Audiobookshelf.
 
 ### Audible ASIN Sync
 
