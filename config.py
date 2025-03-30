@@ -13,6 +13,7 @@ from PyQt5.Qt import (
     QPushButton,
     QLabel,
     QLineEdit,
+    QPlainTextEdit,
     QHBoxLayout,
     QVBoxLayout,
     QFormLayout,
@@ -435,6 +436,12 @@ for config_name in CUSTOM_COLUMN_DEFAULTS:
 for config_name in CHECKBOXES:
     CONFIG.defaults[config_name] = CHECKBOXES[config_name].get('default', False)
 
+def create_separator():
+    separator = QFrame()
+    separator.setFrameShape(QFrame.HLine)
+    separator.setFrameShadow(QFrame.Sunken)
+    return separator
+
 if numeric_version >= (5, 5, 0):
     module_debug_print = partial(root_debug_print, ' audiobookshelf:config:', sep='')
 else:
@@ -461,7 +468,7 @@ class ConfigWidget(QWidget):
         layout.addLayout(title_layout)
 
         # Sync Section
-        layout.addWidget(self.create_separator())
+        layout.addWidget(create_separator())
         ps_header_label = QLabel(
             "This plugin allows calibre to pull metadata from the built-in Audiobookshelf API.\n"
             "You must link the audiobook using either Quick Link (intelligently by Audiobookshelf ) "
@@ -499,7 +506,7 @@ class ConfigWidget(QWidget):
         layout.addLayout(scheduled_sync_layout)
 
         # Add custom column dropdowns
-        layout.addWidget(self.create_separator())
+        layout.addWidget(create_separator())
         self._get_create_new_custom_column_instance = None
         self.sync_custom_columns = {}
         bottom_options_layout = QHBoxLayout()
@@ -527,7 +534,7 @@ class ConfigWidget(QWidget):
             )
         
         # Other Identifiers
-        layout.addWidget(self.create_separator())
+        layout.addWidget(create_separator())
         identifer_label = QLabel('Enable additional Identifer Sync and add composite columns to view the identifers below.')
         layout.addWidget(identifer_label)
         audible_config_layout = QHBoxLayout()
@@ -551,7 +558,7 @@ class ConfigWidget(QWidget):
         layout.addLayout(identifier_column_layout)
 
         # Writeback
-        layout.addWidget(self.create_separator())
+        layout.addWidget(create_separator())
         writeback_header_label = QLabel(
             "This plugin allows calibre to push metadata back to Audiobookshelf when changed inside of calibre.\n"
             "Any of the columns above with a * are able to be easily sync'd back to Audiobookshelf.\n"
@@ -645,7 +652,7 @@ class ConfigWidget(QWidget):
         form_layout = columns_group_box_layout
         form_layout.addRow(current_Location_label, custom_column_combo)
         if CUSTOM_COLUMN_DEFAULTS[custom_col_name].get('last_in_group', False):
-            form_layout.addRow(self.create_separator())
+            form_layout.addRow(create_separator())
         self.sync_custom_columns[custom_col_name]['combo_box'] = custom_column_combo
         return custom_column_combo
 
@@ -722,12 +729,6 @@ class ConfigWidget(QWidget):
             }
         return available_columns
 
-    def create_separator(self):
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        return separator
-
 try:
     from calibre.gui2.preferences.create_custom_column import CreateNewCustomColumn
     SUPPORTS_CREATE_CUSTOM_COLUMN = True
@@ -738,29 +739,35 @@ class ABSAccountPopup(QDialog):
     def __init__(self, parent):
         QDialog.__init__(self, parent)
         self.setWindowTitle('Add Audiobookshelf Account')
-        self.setGeometry(100, 100, 400, 200)
+        self.resize(400, 100) # 400 width, small height to constrain
 
         layout = QVBoxLayout()
         self.setLayout(layout)
 
         self.note_label = QLabel(
-            'Enter your Audiobookshelf server URL, if it''s the same device as '
-            'calibre you can leave the default filled in.\n'
-            'Enter your Audiobookshelf API Key and click Save Account.',
+            "Enter your Audiobookshelf server URL, if it's the same device as "
+            'calibre you can leave the default filled in.<br>'
+            'Enter your <a href="https://api.audiobookshelf.org/#introduction:~:text=You%20can%20find%20your%20API%20token%20by%20logging%20into%20the%20Audiobookshelf%20web%20app%20as%20an%20admin%2C%20go%20to%20the%20config%20%E2%86%92%20users%20page%2C%20and%20click%20on%20your%20account.">Audiobookshelf API Key</a> and click Save Account.',
             self
         )
         self.note_label.setWordWrap(True)
+        self.note_label.setOpenExternalLinks(True)
         layout.addWidget(self.note_label)
+        layout.addWidget(create_separator())
 
         self.url_label = QLabel('Audiobookshelf Server URL:', self)
+        self.url_label.setBuddy(self.url_label)
         self.url_input = QLineEdit(self)
         self.url_input.setText(CONFIG['abs_url'])
         layout.addWidget(self.url_label)
         layout.addWidget(self.url_input)
+        layout.addWidget(create_separator())
 
         self.key_label = QLabel('API Key:', self)
-        self.key_input = QLineEdit(self)
-        self.key_input.setText(CONFIG['abs_key'])
+        self.url_label.setBuddy(self.key_label)
+        self.key_input = QPlainTextEdit(self)
+        self.key_input.setFixedHeight(100)
+        self.key_input.setPlainText(CONFIG['abs_key'])
         layout.addWidget(self.key_label)
         layout.addWidget(self.key_input)
 
@@ -770,7 +777,8 @@ class ABSAccountPopup(QDialog):
 
     def save_audiobookshelf_account_settings(self):
         CONFIG['abs_url'] = self.url_input.text()
-        CONFIG['abs_key'] = self.key_input.text()
+        CONFIG['abs_key'] = self.key_input.toPlainText()
+
         try:
             from calibre.ebooks.metadata.sources.prefs import msprefs
             id_link_rules = msprefs['id_link_rules']
@@ -778,7 +786,7 @@ class ABSAccountPopup(QDialog):
             msprefs['id_link_rules'] = id_link_rules
         except ImportError:
             print('Could not add identifer link rule for Audiobookshelf')        
-        
+
         self.accept()
 
 class TitleLayout(QHBoxLayout):
