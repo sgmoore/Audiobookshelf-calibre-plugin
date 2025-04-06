@@ -188,13 +188,11 @@ class AudiobookshelfAction(InterfaceAction):
         for item in abs_items:
             if item.get('id') not in linked_abs_ids:
                 metadata = item.get('media', {}).get('metadata', {})
-                title = metadata.get('title', '')
-                author = metadata.get('authorName', '')
-                if title:  # Only include items with titles
-                    unlinked_items.append({
+                unlinked_items.append({
                         'hidden_id': item.get('id'),
-                        'title': title,
-                        'author': author,
+                        'title': metadata.get('title', ''),
+                        'author': metadata.get('authorName', ''),
+                        'library': item.get('libraryName', ''),
                     })
 
         # Sort by title
@@ -513,7 +511,15 @@ class AudiobookshelfAction(InterfaceAction):
             cacheList = QLCache.get('cache', [])
             all_book_ids = [book_id for book_id in all_book_ids if book_id not in cacheList]
             if not all_book_ids:
-                show_info(self.gui, "All Books Linked or Tried", "All the books in the calibre library have already been linked or have already failed to QuickLink.")
+                cacheListTitles = [db.get_metadata(book_id).title for book_id in cacheList]
+                info_dialog(
+                    self.gui,
+                    "All Books Linked or Tried",
+                    "All the books in the calibre library have already been linked or have already failed to QuickLink.\n\nSee details below for a list of books that have failed to link:",
+                    det_msg=str(cacheListTitles),
+                    show=True,
+                    show_copy_button=True
+                )
                 return
 
         abs_items = self.get_abs_library_items()
@@ -881,10 +887,10 @@ class SyncCompletionDialog(QDialog):
         # Set minimum width for each column
         if resultsColWidth == 0:
             table.resizeColumnsToContents()
-            # Enforce a maximum width of 350 for each column
+            # Enforce a maximum width of 300 for each column
             for col in range(len(headers)):
-                if table.columnWidth(col) > 350: 
-                    table.setColumnWidth(col, 350)
+                if table.columnWidth(col) > 300: 
+                    table.setColumnWidth(col, 300)
         else:
             for col in range(len(headers)):
                 table.setColumnWidth(col, resultsColWidth)

@@ -471,8 +471,8 @@ class ConfigWidget(QWidget):
         layout.addWidget(create_separator())
         ps_header_label = QLabel(
             "This plugin allows calibre to pull metadata from the built-in Audiobookshelf API.\n"
-            "You must link the audiobook using either Quick Link (intelligently by Audiobookshelf ) "
-            "ASIN and calibre title/author or by selecting the correct book using the link feature.\n"
+            "You must link the audiobook using either Quick Link (intelligently by Audiobookshelf "
+            "ASIN and calibre title/author) or by selecting the correct book using the link feature.\n"
             "This functionality can optionally be scheduled as a daily sync from within calibre. "
             "Enter scheduled time in military time (default is 4 AM local time).\n"
             "This plugin can also maintain bidirectional sync."
