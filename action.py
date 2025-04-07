@@ -206,7 +206,7 @@ class AudiobookshelfAction(InterfaceAction):
             if col == 0:
                 open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[row].get('hidden_id')}")
         dialog.table_area.findChild(QTableWidget).cellDoubleClicked.connect(on_cell_double_clicked)
-        dialog.exec_()
+        dialog.show()
 
     def scheduled_sync(self):
         def scheduledTask():
@@ -511,15 +511,29 @@ class AudiobookshelfAction(InterfaceAction):
             cacheList = QLCache.get('cache', [])
             all_book_ids = [book_id for book_id in all_book_ids if book_id not in cacheList]
             if not all_book_ids:
-                cacheListTitles = [db.get_metadata(book_id).title for book_id in cacheList]
-                info_dialog(
-                    self.gui,
-                    "All Books Linked or Tried",
-                    "All the books in the calibre library have already been linked or have already failed to QuickLink.\n\nSee details below for a list of books that have failed to link:",
-                    det_msg=str(cacheListTitles),
-                    show=True,
-                    show_copy_button=True
-                )
+                cacheList = [
+                    {
+                        'hidden_book_id': book_id,
+                        'title': metadata.title,
+                        'authors': ', '.join(metadata.authors),
+                    }
+                    for book_id in cacheList
+                    if (metadata := db.get_metadata(book_id))
+                ]
+                cacheList.sort(key=lambda row: row['title'].lower()) # Sort by title
+                dialog = SyncCompletionDialog(self.gui, 
+                                     "All Books Linked or Tried",
+                                     ("All the books in the calibre library that have not been linked have already failed to QuickLink.\n\n"
+                                     "See below for a list of books that have failed to link.\n"
+                                     "Double click the book title to try again during the next QuickLink:"),
+                                     cacheList, resultsColWidth=0, type="warn")
+                def on_cell_double_clicked(row, col):
+                    if col == 0:
+                        dialog.table_area.findChild(QTableWidget).removeRow(row)
+                        del cacheList[row]
+                        QLCache['cache'] = [item.hidden_book_id for item in cacheList]
+                dialog.table_area.findChild(QTableWidget).cellDoubleClicked.connect(on_cell_double_clicked)
+                dialog.show()
                 return
 
         abs_items = self.get_abs_library_items()
