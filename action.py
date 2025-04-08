@@ -490,6 +490,7 @@ class AudiobookshelfAction(InterfaceAction):
         self.absSyncWorker.start()
 
     def quick_link_books(self):
+        import difflib
         def audible_search(params):
             headers = {
                 'Accept': 'application/json',
@@ -574,8 +575,9 @@ class AudiobookshelfAction(InterfaceAction):
                                 'title': title,
                                 'author': authors[0],
                                 'num_results': 25,
+                                'response_groups': 'product_desc'
                             })
-                            asin_overlap = {item['asin'] for item in response['products']}.intersection(abs_asin_set)
+                            asin_overlap = {item['asin'] for item in response['products'] if difflib.SequenceMatcher(None, title, item['title']).ratio()>.5}.intersection(abs_asin_set)
                             if asin_overlap:
                                 if len(asin_overlap) == 1:
                                     matched_asin = next(iter(asin_overlap))
