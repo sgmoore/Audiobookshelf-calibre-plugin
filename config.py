@@ -258,7 +258,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Full path to the audiobook"),
         'default_lookup_name': '#abs_fullpath',
-        'config_label': _('Audiobookshelf Publisher:'),
+        'config_label': _('Audiobookshelf Full Path:'),
         'config_tool_tip': _('A "Text" column to store the full path to the audiobook.'),
         'api_source': "lib_items",
         'data_location': ['path'],
