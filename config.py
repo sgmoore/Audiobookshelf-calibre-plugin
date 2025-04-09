@@ -121,7 +121,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('A "series" column to store the series from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'seriesName'],
-        'transform': (lambda value: None if not value else (value.split(" #")[0].strip(), float(value.split(" #")[1]) if len(value.split(" #")) > 1 else float(1))),
+        'transform': (lambda value: None if not value else (value.split(" #")[0].strip(), float(value.split(" #")[1].split(",")[0]) if len(value.split(" #")) > 1 else float(1))),
     },
     'column_audiobook_language': {
         'column_heading': _("Audiobook Language"),
@@ -203,14 +203,26 @@ CUSTOM_COLUMN_DEFAULTS = {
     },
     'column_audiobook_size': {
         'column_heading': _("Audiobook Size"),
-        'datatype': 'text',
+        'datatype': 'int',
+        'additional_params': {'number_format': "{:,d} MB"},
         'description': _("Size of the audiobook in MB"),
         'default_lookup_name': '#abs_size',
         'config_label': _('Audiobook Size:'),
-        'config_tool_tip': _('A "Text" column to store the audiobook size in MB (formatted with commas as thousands separators).'),
+        'config_tool_tip': _('An "Integer" column to store the audiobook size in MB (formatted with commas as thousands separators).'),
         'api_source': "lib_items",
         'data_location': ['size'],
-        'transform': lambda value: f"{int(float(value) / (1024*1024)):,} MB",
+        'transform': lambda value: int(float(value) / (1024*1024)),
+    },
+    'column_audiobook_duration': {
+        'column_heading': _("Audiobook Duration"),
+        'datatype': 'text',
+        'description': _("Duration of the audiobook formatted (Hrs:Min)"),
+        'default_lookup_name': '#abs_duration',
+        'config_label': _('Audiobook Duration:'),
+        'config_tool_tip': _('A "Text" column to store the duration of the audiobook in Hrs:Min format.'),
+        'api_source': "lib_items",
+        'data_location': ['media', 'duration'],
+        'transform': (lambda value: f"{int(float(value)//3600)}:{int((float(value) % 3600)//60):02d}"),
     },
     'column_audiobook_numfiles': {
         'column_heading': _("Audiobook File Count"),
@@ -289,6 +301,7 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audiobook_progress_float': {
         'column_heading': _("Audiobook Precise Progress"),
         'datatype': 'float',
+        'additional_params': {'number_format': "{:.2f}%"},
         'description': _("Progress percentage with decimal precision"),
         'default_lookup_name': '#abs_progfloat',
         'config_label': _('Audiobook Precise Progress (#.##%):'),
@@ -300,6 +313,7 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audiobook_progress_int': {
         'column_heading': _("Audiobook Progress"),
         'datatype': 'int',
+        'additional_params': {'number_format': "{}%"},
         'description': _("Progress percentage as a whole number"),
         'default_lookup_name': '#abs_progint',
         'config_label': _('Audiobook Progress (#%):'),
@@ -318,17 +332,6 @@ CUSTOM_COLUMN_DEFAULTS = {
         'api_source': "mediaProgress",
         'data_location': ['currentTime'],
         'transform': (lambda value: f"{int(float(value)//3600)}:{int((float(value)%3600)//60):02d}"),
-    },
-    'column_audiobook_duration': {
-        'column_heading': _("Audiobook Duration"),
-        'datatype': 'text',
-        'description': _("Duration of the audiobook formatted (Hrs:Min)"),
-        'default_lookup_name': '#abs_duration',
-        'config_label': _('Audiobook Duration:'),
-        'config_tool_tip': _('A "Text" column to store the duration of the audiobook in Hrs:Min format.'),
-        'api_source': "lib_items",
-        'data_location': ['media', 'duration'],
-        'transform': (lambda value: f"{int(float(value)//3600)}:{int((float(value) % 3600)//60):02d}"),
         'last_in_group': True,
     },
     'column_audiobook_started': {
@@ -438,6 +441,7 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audible_numratings': {
         'column_heading': _("Audible Rating Count"),
         'datatype': 'int',
+        'additional_params': {'number_format': "{:,d}"},
         'description': _("Number of ratings on Audible"),
         'default_lookup_name': '#abs_numratings',
         'config_label': _('Audible Rating Count:'),
@@ -448,6 +452,7 @@ CUSTOM_COLUMN_DEFAULTS = {
     'column_audible_numreviews': {
         'column_heading': _("Audible Review Count"),
         'datatype': 'int',
+        'additional_params': {'number_format': "{:,d}"},
         'description': _("Number of reviews on Audible"),
         'default_lookup_name': '#abs_numreviews',
         'config_label': _('Audible Review Count:'),

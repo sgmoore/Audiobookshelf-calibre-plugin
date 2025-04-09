@@ -58,7 +58,8 @@ the **create new columns** option in the config dropdowns.
 | Audiobook Abridged*          | Indicates if the audiobook is abridged                        | Yes/No       |
 | Audiobook Explicit*          | Indicates if the audiobook is explicit                        | Yes/No       |
 ||||
-| Audiobook Size               | Size of the audiobook in MB                                   | Text         |
+| Audiobook Size               | Size of the audiobook in MB                                   | Integer      |
+| Audiobook Duration           | Duration of the audiobook formatted as Hrs:Min                | Text         |
 | Audiobook File Count         | Number of files that comprise the audiobook                   | Integer      |
 | Audiobook Chapters           | Number of chapters in the audiobook                           | Integer      |
 ||||
@@ -71,7 +72,6 @@ the **create new columns** option in the config dropdowns.
 | Audiobook Precise Progress   | Progress percentage with decimal precision                    | Float        |
 | Audiobook Progress           | Progress percentage as a whole number                         | Integer      |
 | Audiobook Progress Time      | Current audiobook progress time formatted as Hrs:Min          | Text         |
-| Audiobook Duration           | Duration of the audiobook formatted as Hrs:Min                | Text         |
 ||||
 | Audiobook Started?           | Indicates if the audiobook has been started                   | Yes/No       |
 | Audiobook Begin Date         | The date when the audiobook reading began                     | Date         |
