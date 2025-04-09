@@ -636,7 +636,7 @@ class AudiobookshelfAction(InterfaceAction):
                 self.book_ids = book_ids
 
             def run(self):
-                num_linked = 0
+                num_matched = 0
                 num_failed = 0
                 results = []
                 for idx, book_id in enumerate(self.book_ids):
@@ -657,14 +657,14 @@ class AudiobookshelfAction(InterfaceAction):
                                     matched_asin = next(iter(asin_overlap))
                                     abs_id_list = abs_asin_index.get(matched_asin)
                                     if len(abs_id_list) == 1:
-                                        identifiers = metadata.get('identifiers', {})
-                                        identifiers['audiobookshelf_id'] = abs_id_list[0]['abs_id']
-                                        metadata.set('identifiers', identifiers)
-                                        self.db.set_metadata(book_id, metadata, set_title=False, set_authors=False)
-                                        num_linked += 1
+                                        num_matched += 1
                                         results.append({
                                             'title': metadata.get('title', f'Book {book_id}'),
-                                            'linked': f"Linked to {abs_id_list[0]['abs_title']}"
+                                            'matched title': f"{abs_id_list[0]['abs_title']}",
+                                            'Link?': True,
+                                            'hidden_book_id': book_id,
+                                            'hidden_abs_id': abs_id_list[0]['abs_id'],
+                                            'hidden_metadata': metadata
                                         })
                                     else:
                                         num_failed += 1
@@ -698,7 +698,7 @@ class AudiobookshelfAction(InterfaceAction):
                             'error': "Calibre is missing title and/or author, which are required for QuickLink"
                         })
                     self.progress_update.emit(idx + 1)
-                self.finished_signal.emit({'results': results, 'num_linked': num_linked, 'num_failed': num_failed})
+                self.finished_signal.emit({'results': results, 'num_matched': num_matched, 'num_failed': num_failed})
 
         startTime = time.perf_counter()
         self.quickLinkWorker = QuickLinkWorker(self, db, all_book_ids)
@@ -713,9 +713,17 @@ class AudiobookshelfAction(InterfaceAction):
             if CONFIG.get('checkbox_cache_QuickLink_history', False):
                 cacheList.extend([book['hidden_id'] for book in res['results'] if 'hidden_id' in book])
                 QLCache['cache'] = cacheList
-            message = f"Quick Link Books completed.\nBooks linked: {res['num_linked']}\nBooks failed: {res['num_failed']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds."
-            res['results'].sort(key=lambda row: (not row.get('linked', False), row['title'].lower())) # Sort by if linked, then title
-            SyncCompletionDialog(self.gui, "Quick Link Results", message, res['results'], resultsColWidth=0, type="info").show()
+            message = f"{'QuickLink Completed Without Matches.' if res['num_matched'] == 0 else 'QuickLink Matches Found. Confirm Matches via Checkbox and Click ''Link Selected'' to Link Selected Matches'}\nBooks matched: {res['num_matched']}\nBooks failed: {res['num_failed']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds."
+            res['results'].sort(key=lambda row: (not row.get('Link?', False), row['title'].lower())) # Sort by if linkable, then title
+            dialog = SyncCompletionDialog(self.gui, "Quick Link Results", message, res['results'], resultsColWidth=0, type="info")
+            dialog.exec_()
+            if hasattr(dialog, 'checked_rows'):
+                for idx in dialog.checked_rows:
+                    identifiers = res['results'][idx]['hidden_metadata'].get('identifiers', {})
+                    identifiers['audiobookshelf_id'] = res['results'][idx]['hidden_abs_id']
+                    res['results'][idx]['hidden_metadata'].set('identifiers', identifiers)
+                    db.set_metadata(res['results'][idx]['hidden_book_id'], res['results'][idx]['hidden_metadata'], set_title=False, set_authors=False)
+
         self.quickLinkWorker.finished_signal.connect(on_finished)
         self.quickLinkWorker.start()
 
@@ -941,25 +949,39 @@ class SyncCompletionDialog(QDialog):
         ok_button.setIcon(QIcon.ic('ok.png'))
         ok_button.clicked.connect(self.accept)
         ok_button.setDefault(True)
+        if results and table.horizontalHeaderItem(table.columnCount() - 1).text() == 'Link?':
+            ok_button.setText('Link Selected')
+            ok_button.setIcon(QIcon.ic('insert-link.png'))
+            def link_callback():
+                link_index = table.columnCount() - 1
+                self.checked_rows = []
+                for row in range(table.rowCount()):
+                    item = table.item(row, link_index)
+                    if item and item.checkState() == Qt.Checked:
+                        self.checked_rows.append(row)
+                self.accept()
+            ok_button.clicked.connect(link_callback)
         bottomButtonLayout.addWidget(ok_button)
         layout.addLayout(bottomButtonLayout)
     
     def create_results_table(self, results, resultsRowHeight, resultsColWidth):
         # Get all possible headers from results (ignoring hidden_ prefix) and save as set
         all_headers = {key for result in results for key in result.keys() if not key.startswith('hidden_')}
-        
-        # Organize headers: title first, custom columns in middle, error last
+
+        # Organize headers: title first, custom columns in middle, then messages, checkbox last
         headers = ['title']
         custom_columns = sorted(h for h in all_headers 
-                               if h not in ('title', 'error', 'linked', 'skipped'))
+                               if h not in ('title', 'matched title', 'skipped', 'error', 'Link?'))
         if custom_columns:
             headers.extend(custom_columns)
-        if 'linked' in all_headers:
-            headers.append('linked')
+        if 'matched title' in all_headers:
+            headers.append('matched title')
         if 'skipped' in all_headers:
             headers.append('skipped')
         if 'error' in all_headers:
             headers.append('error')
+        if 'Link?' in all_headers:
+            headers.append('Link?')
 
         table = QTableWidget()
         table.setRowCount(len(results))
@@ -968,12 +990,19 @@ class SyncCompletionDialog(QDialog):
 
         # Populate Table
         for row, result in enumerate(results):
-            for col, key in enumerate(headers):
-                value = result.get(key, "")
-                item = QTableWidgetItem(str(value))
-                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                item.setToolTip(str(value))
-                table.setItem(row, col, item)
+            for col, header in enumerate(headers):
+                if header == "Link?" and result.get(header, False):
+                    item = QTableWidgetItem("")
+                    item.setFlags((item.flags() & ~Qt.ItemIsEditable) | Qt.ItemIsUserCheckable)
+                    item.setCheckState(Qt.Checked)
+                    item.setToolTip('Checked Box = Link, Unchecked Box = Skip')
+                    table.setItem(row, col, item)
+                else:
+                    value = result.get(header, "")
+                    item = QTableWidgetItem(str(value))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setToolTip(str(value))
+                    table.setItem(row, col, item)
 
         # Set minimum width for each column
         if resultsColWidth == 0:
@@ -996,7 +1025,7 @@ class SyncCompletionDialog(QDialog):
             else:
                 for row in range(len(results)):
                     table.setRowHeight(row, resultsRowHeight)
- 
+
         return table
 
 class LinkDialog(QDialog):
