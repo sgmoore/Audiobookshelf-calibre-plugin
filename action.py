@@ -75,6 +75,14 @@ class AudiobookshelfAction(InterfaceAction):
         self.qaction.triggered.connect(self.sync_from_audiobookshelf)
         # Right-click menu (already includes left-click action)
         menu = self.qaction.menu()
+        self.create_menu_action(
+            menu,
+            'Sync Audible Ratings',
+            'Sync Audible Ratings',
+            icon='rating.png',
+            triggered=self.sync_audible_rating,
+            description='Update Audible Ratings Data from Audible API'
+        )
         menu.addSeparator()
         self.create_menu_action(
             menu,
@@ -82,7 +90,7 @@ class AudiobookshelfAction(InterfaceAction):
             'Link Audiobookshelf Book',
             icon='insert-link.png',
             triggered=self.link_audiobookshelf_book,
-            description=''
+            description='Match calibre Book to Audiobookshelf Book'
         )
         self.create_menu_action(
             menu,
@@ -90,7 +98,7 @@ class AudiobookshelfAction(InterfaceAction):
             'Quick Link Books',
             icon='wizard.png',
             triggered=self.quick_link_books,
-            description=''
+            description='Search Audible for Book and check for matches in Audiobookshelf by ASIN'
         )
         if DEBUG:
             self.create_menu_action(
@@ -99,7 +107,7 @@ class AudiobookshelfAction(InterfaceAction):
                 'Remove ABS Link',
                 icon='list_remove.png',
                 triggered=self.unlink_audiobookshelf_book,
-                description=''
+                description='DEBUG ONLY: Remove ABS ID from calibre Book(s)'
             )
         menu.addSeparator()
         self.create_menu_action(
@@ -117,7 +125,7 @@ class AudiobookshelfAction(InterfaceAction):
             'Configure',
             icon='config.png',
             triggered=self.show_config,
-            description=''
+            description='Add Columns, User Credentials, and Configure The Plugin'
         )
         menu.addSeparator()
         self.create_menu_action(
@@ -126,7 +134,7 @@ class AudiobookshelfAction(InterfaceAction):
             'Readme',
             icon='dialog_question.png',
             triggered=self.show_readme,
-            description=''
+            description='Open Github Readme in Browser'
         )
         self.create_menu_action(
             menu,
@@ -134,7 +142,7 @@ class AudiobookshelfAction(InterfaceAction):
             'About',
             icon='dialog_information.png',
             triggered=self.show_about,
-            description=''
+            description='Get General Information About The Plugin'
         )
         
         # Start scheduled sync if enabled
@@ -430,6 +438,8 @@ class AudiobookshelfAction(InterfaceAction):
                             value = self.action.get_nested_value(item_data, data_location)
                         elif api_source == "collections":
                             value = collections_dict.get(abs_id, [])
+                        else:
+                            continue
                         
                         if value is not None:
                             if 'transform' in col_meta and callable(col_meta['transform']):
@@ -489,17 +499,78 @@ class AudiobookshelfAction(InterfaceAction):
         self.absSyncWorker.finished_signal.connect(on_finished)
         self.absSyncWorker.start()
 
+    def audible_search(self, params):
+        # https://audible.readthedocs.io/en/latest/misc/external_api.html#get--1.0-catalog-products
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': f'CalibreAudiobookshelfSync/{self.version}',
+        }
+        req = Request(f"https://api.audible{CONFIG['audibleRegion']}/1.0/catalog/products?{urllib.parse.urlencode(params)}", headers=headers)
+        with urlopen(req, timeout=20) as response:
+            resp_data = response.read()
+            return json.loads(resp_data.decode('utf-8'))
+
+    def sync_audible_rating(self):
+        if not CONFIG.get('checkbox_enable_Audible_ASIN_sync', False):
+            show_error(self.gui, "Configuration Error", "Audible ASIN sync is not enabled but is required for this feature, please enable it in the configuration.")
+            return
+
+        audible_cols = {col_lookup_name: COLUMNS[config_key]['data_location'] for config_key, col_lookup_name in CONFIG.items() if config_key.startswith('column_audible_') and col_lookup_name}
+        if not audible_cols:
+            show_error(self.gui, "Configuration Error", "No Audible columns configured for syncing, please configure them in the plugin settings.")
+            return
+
+        db = self.gui.current_db.new_api
+        bookList = list(db.search('identifiers:"=audible:"'))
+        if not bookList:
+            show_info(self.gui, "No Linked Books/ASINs", "Calibre library has no linked books and/or ASINs, try using Quick Link or manually linking books and verify Audiobookshelf has ASINs filled in.")
+            return
+        bookList = [
+            {
+                'book_id': book_id,
+                'metadata': metadata,
+                'ASIN': str(metadata.get('identifiers', {}).get('audible')),
+                'current_values': {key: metadata.get(key, '') for key in audible_cols.keys()}
+            }
+            for book_id in bookList
+            if (metadata := db.get_metadata(book_id))
+        ]
+
+        # Query Audible API for ratings in chunks of 50 ASINs (API restriction). Save response data as dict keyed by ASIN
+        audible_ratings = {}
+        for i in range(0, len(bookList), 50):                
+            audible_ratings.update({item['asin']: item for item in self.audible_search({
+                'asins': ','.join([book['ASIN'] for book in bookList[i:i + 50]]),
+                'response_groups': 'rating'
+            })['products']})
+
+        # Update metadata for each book with new values from Audible API if needed
+        log = []
+        for i, book in enumerate(bookList):
+            if 'rating' not in audible_ratings.get(book['ASIN'], {}):
+                log.append({'title': book['metadata'].get('title'), 'ASIN': book['ASIN'], 'error': 'No rating found'})
+                continue
+            log.append({'title': book['metadata'].get('title'), 'ASIN': book['ASIN']})
+            for col_lookup_name, data_location in audible_cols.items():
+                new_value = self.get_nested_value(audible_ratings[book['ASIN']], data_location)
+                if isinstance(new_value, float): # Audible rating is a float, but we want to store it as an int*2 (for half rating) in calibre
+                    new_value = int(new_value*2)
+                if new_value != book['current_values'][col_lookup_name]:
+                    book['metadata'].set(col_lookup_name, new_value)
+                    db.set_metadata(book['book_id'], book['metadata'], set_title=False, set_authors=False)
+                    log[i][col_lookup_name] = f"{book['current_values'][col_lookup_name] if book['current_values'][col_lookup_name] is not None else '-'} >> {new_value}"
+
+        log.sort(key=lambda row: (not row.get('error', False), -len(row), row['title'].lower())) # Sort by if error, # of changes, then title
+        SyncCompletionDialog(self.gui, 
+                                "Audible Ratings Updated",
+                                (f"Total books processed: {len(bookList)}\n"
+                                 f"Updated: {sum(1 for d in log if any(key.startswith('#') for key in d.keys()))}\n"
+                                 f"Skipped: {len([d for d in log if len(d) == 2])}\n"
+                                 f"Failed: {sum(1 for d in log if 'error' in d)}"),
+                                log, resultsColWidth=0, type="good").show()
+
     def quick_link_books(self):
         import difflib
-        def audible_search(params):
-            headers = {
-                'Accept': 'application/json',
-                'User-Agent': f'CalibreAudiobookshelfSync/{self.version}',
-            }
-            req = Request(f"https://api.audible{CONFIG['audibleRegion']}/1.0/catalog/products?{urllib.parse.urlencode(params)}", headers=headers)
-            with urlopen(req, timeout=20) as response:
-                resp_data = response.read()
-                return json.loads(resp_data.decode('utf-8'))
 
         db = self.gui.current_db.new_api
         all_book_ids = list(db.search('not identifiers:"=audiobookshelf_id:"'))
@@ -571,7 +642,7 @@ class AudiobookshelfAction(InterfaceAction):
                     authors = metadata.get('authors', [])
                     if title and authors and authors[0] != 'Unknown':
                         try:
-                            response = audible_search({
+                            response = self.action.audible_search({
                                 'title': title,
                                 'author': authors[0],
                                 'num_results': 25,
@@ -829,6 +900,7 @@ class SyncCompletionDialog(QDialog):
             'info': 'dialog_information',
             'error': 'dialog_error',
             'warn': 'dialog_warning',
+            'good': 'ok',
         }.get(type)
         if type_icon is not None:
             icon = QIcon.ic(f'{type_icon}.png')

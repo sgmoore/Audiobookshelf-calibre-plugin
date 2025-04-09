@@ -42,45 +42,51 @@ the **create new columns** option in the config dropdowns.
 <details>
 <summary>See Columns</summary>
 
-| Column                    | Description                                                   | Type   |
-|---------------------------|---------------------------------------------------------------|--------|
-| Audiobook Title*          | Title of the audiobook                                        | Text   |
-| Audiobook Subtitle*       | Subtitle of the audiobook                                     | Text   |
-| Audiobook Description*    | Description of the audiobook                                  | Comments |
-| Audiobook Author*         | Author name(s)                                                | Text (Names)  |
-| Audiobook Narrator*       | Narrator name(s)                                              | Text (Names)  |
-| Audiobook Series*         | Series of the audiobook                                       | Series |
-| Audiobook Language*       | Language of the audiobook                                     | Text   |
-| Audiobook Genres*         | Genres tagged for the audiobook                               | Text (Tags)  |
-| Audiobook Tags*           | Tags associated with the audiobook                            | Text (Tags)  |
-| Audiobook Publisher*      | Publisher of the audiobook                                    | Text   |
-| Audiobook Publish Year*   | Year the audiobook was published                              | Integer |
-| Audiobook Abridged*       | Indicates if the audiobook is abridged                        | Yes/No |
-| Audiobook Explicit*       | Indicates if the audiobook is explicit                        | Yes/No |
+| Column                       | Description                                                   | Type         |
+|------------------------------|---------------------------------------------------------------|--------------|
+| Audiobook Title*             | Title of the audiobook                                        | Text         |
+| Audiobook Subtitle*          | Subtitle of the audiobook                                     | Text         |
+| Audiobook Description*       | Description of the audiobook                                  | Comments     |
+| Audiobook Author*            | Author name(s)                                                | Text (Names) |
+| Audiobook Narrator*          | Narrator name(s)                                              | Text (Names) |
+| Audiobook Series*            | Series of the audiobook                                       | Series       |
+| Audiobook Language*          | Language of the audiobook                                     | Text         |
+| Audiobook Genres*            | Genres tagged for the audiobook                               | Text (Tags)  |
+| Audiobook Tags*              | Tags associated with the audiobook                            | Text (Tags)  |
+| Audiobook Publisher*         | Publisher of the audiobook                                    | Text         |
+| Audiobook Publish Year*      | Year the audiobook was published                              | Integer      |
+| Audiobook Abridged*          | Indicates if the audiobook is abridged                        | Yes/No       |
+| Audiobook Explicit*          | Indicates if the audiobook is explicit                        | Yes/No       |
 ||||
-| Audiobook Size            | Size of the audiobook in MB                                   | Text   |
-| Audiobook File Count      | Number of files that comprise the audiobook                   | Integer |
-| Audiobook Chapters        | Number of chapters in the audiobook                           | Integer |
+| Audiobook Size               | Size of the audiobook in MB                                   | Text         |
+| Audiobook File Count         | Number of files that comprise the audiobook                   | Integer      |
+| Audiobook Chapters           | Number of chapters in the audiobook                           | Integer      |
 ||||
-| Audiobookshelf Library    | Audiobookshelf Library the audiobook is located in            | Text   |
-| Audiobookshelf Date Added | The date the audiobook was added to Audiobookshelf            | Date   |
-| Audiobookshelf Full Path  | Full path to the audiobook                                    | Text   |
-| Audiobookshelf Relative Path | Relative Path of the audiobook                             | Text   |
+| Audiobookshelf Library       | Audiobookshelf Library the audiobook is located in            | Text         |
+| Audiobookshelf Date Added    | The date the audiobook was added to Audiobookshelf            | Date         |
+| Audiobookshelf Full Path     | Full path to the audiobook                                    | Text         |
+| Audiobookshelf Relative Path | Relative Path of the audiobook                                | Text         |
 ||||
-| Audiobook Last Read Date  | The last date the audiobook was read                          | Date   |
-| Audiobook Precise Progress| Progress percentage with decimal precision                    | Float  |
-| Audiobook Progress        | Progress percentage as a whole number                         | Integer |
-| Audiobook Progress Time   | Current audiobook progress time formatted as Hrs:Min          | Text   |
-| Audiobook Duration        | Duration of the audiobook formatted as Hrs:Min                | Text   |
+| Audiobook Last Read Date     | The last date the audiobook was read                          | Date         |
+| Audiobook Precise Progress   | Progress percentage with decimal precision                    | Float        |
+| Audiobook Progress           | Progress percentage as a whole number                         | Integer      |
+| Audiobook Progress Time      | Current audiobook progress time formatted as Hrs:Min          | Text         |
+| Audiobook Duration           | Duration of the audiobook formatted as Hrs:Min                | Text         |
 ||||
-| Audiobook Started?        | Indicates if the audiobook has been started                   | Yes/No |
-| Audiobook Begin Date      | The date when the audiobook reading began                     | Date   |
+| Audiobook Started?           | Indicates if the audiobook has been started                   | Yes/No       |
+| Audiobook Begin Date         | The date when the audiobook reading began                     | Date         |
 ||||
-| Audiobook Finished?       | Indicates if the audiobook has been finished                  | Yes/No |
-| Audiobook Finish Date     | The date when the audiobook was finished                      | Date   |
+| Audiobook Finished?          | Indicates if the audiobook has been finished                  | Yes/No       |
+| Audiobook Finish Date        | The date when the audiobook was finished                      | Date         |
 ||||
-| Audiobook Bookmarks       | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments |
-| Audiobook Collections*    | Collections and Playlists associated with the audiobook       | Text (Tags)   |
+| Audiobook Bookmarks          | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments     |
+| Audiobook Collections*       | Collections and Playlists associated with the audiobook       | Text (Tags)  |
+||||
+| Audible Average Rating       | Average Overall Rating from Audible with Half Stars           | Rating       |
+| Audible Average Performance Rating | Average Performance Rating from Audible with Half Stars | Rating       |
+| Audible Average Story Rating | Average Story Rating from Audible with Half Stars             | Rating       |
+| Audible Rating Count         | Number of (star) ratings on Audible (overall ratings)         | Integer      |
+| Audible Review Count         | Number of (text) reviews on Audible                           | Integer      |
 </details>
 
 ## Usage

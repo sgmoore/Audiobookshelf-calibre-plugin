@@ -49,7 +49,8 @@ Each entry is keyed by the name of the config item used to store the selected co
   config_tool_tip: Tooltip for the item in the Config UI
   api_source: Source of the data; "lib_items" for the GET /api/libraries/{ID}/items endpoint,
               "mediaProgress" for the GET /api/me endpoint,
-              "collections" for the combined GET /api/collections /api/playlists endpoints.
+              "collections" for the combined GET /api/collections /api/playlists endpoints,
+              "audible" for the GET api.audible.com/1.0/catalog/products endpoint.
   data_location: Reference (as a list of keys) to the value in the API response.
   transform (optional): lambda expression to be applied in formatting the value.
   last_in_group (optional): if present and true, a separator will be added after this item in the Config UI.
@@ -399,6 +400,60 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('A "Text" column to store the names of collections and playlists the audiobook is assocated with as tags.'),
         'api_source': "collections",
         'data_location': ['collections'],
+        'last_in_group': True,
+    },
+    'column_audible_avgrating': {
+        'column_heading': _("Audible Average Rating"),
+        'datatype': 'rating',
+        'additional_params': {'allow_half_stars': True},
+        'description': _("Average overall rating on Audible"),
+        'default_lookup_name': '#abs_avgrating',
+        'config_label': _('Audible Average Rating:'),
+        'config_tool_tip': _('A "rating" column to store the average overall rating from Audible with half stars.'),
+        'api_source': "audible",
+        'data_location': ['rating', 'overall_distribution', 'display_stars'],
+    },
+    'column_audible_avgperformancerating': {
+        'column_heading': _("Audible Average Performance Rating"),
+        'datatype': 'rating',
+        'additional_params': {'allow_half_stars': True},
+        'description': _("Average Performance rating on Audible"),
+        'default_lookup_name': '#abs_avgperfrating',
+        'config_label': _('Audible Average Performance Rating:'),
+        'config_tool_tip': _('A "rating" column to store the average performance rating from Audible with half stars.'),
+        'api_source': "audible",
+        'data_location': ['rating', 'performance_distribution', 'display_stars'],
+    },
+    'column_audible_avgstoryrating': {
+        'column_heading': _("Audible Average Story Rating"),
+        'datatype': 'rating',
+        'additional_params': {'allow_half_stars': True},
+        'description': _("Average Story rating on Audible"),
+        'default_lookup_name': '#abs_avgstoryrating',
+        'config_label': _('Audible Average Story Rating:'),
+        'config_tool_tip': _('A "rating" column to store the average story rating from Audible with half stars.'),
+        'api_source': "audible",
+        'data_location': ['rating', 'story_distribution', 'display_stars'],
+    },
+    'column_audible_numratings': {
+        'column_heading': _("Audible Rating Count"),
+        'datatype': 'int',
+        'description': _("Number of ratings on Audible"),
+        'default_lookup_name': '#abs_numratings',
+        'config_label': _('Audible Rating Count:'),
+        'config_tool_tip': _('An "Integer" column to store the number of (star) ratings on Audible.'),
+        'api_source': "audible",
+        'data_location': ['rating', 'overall_distribution', 'num_ratings'],
+    },
+    'column_audible_numreviews': {
+        'column_heading': _("Audible Review Count"),
+        'datatype': 'int',
+        'description': _("Number of reviews on Audible"),
+        'default_lookup_name': '#abs_numreviews',
+        'config_label': _('Audible Review Count:'),
+        'config_tool_tip': _('An "Integer" column to store the number of (text) reviews on Audible.'),
+        'api_source': "audible",
+        'data_location': ['rating', 'num_reviews'],
     },
 }
 
