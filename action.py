@@ -592,19 +592,22 @@ class AudiobookshelfAction(InterfaceAction):
                     for book_id in cacheList
                     if (metadata := db.get_metadata(book_id))
                 ]
-                cacheList.sort(key=lambda row: row['title'].lower()) # Sort by title
+                cacheList.sort(key=lambda row: row['title'].lower())  # Sort by title
                 dialog = SyncCompletionDialog(self.gui, 
                                      "All Books Linked or Tried",
                                      ("All the books in the calibre library that have not been linked have already failed to QuickLink.\n\n"
-                                     "See below for a list of books that have failed to link.\n"
-                                     "Double click the book title to try again during the next QuickLink:"),
+                                      "See below for a list of books that have failed to link.\n"
+                                      "Press the Backspace or Delete key while row(s) are selected to try them again during the next QuickLink."),
                                      cacheList, resultsColWidth=0, type="warn")
-                def on_cell_double_clicked(row, col):
-                    if col == 0:
-                        dialog.table_area.findChild(QTableWidget).removeRow(row)
-                        del cacheList[row]
-                        QLCache['cache'] = [item.hidden_book_id for item in cacheList]
-                dialog.table_area.findChild(QTableWidget).cellDoubleClicked.connect(on_cell_double_clicked)
+                table = dialog.table_area.findChild(QTableWidget)
+                def custom_key_press(event):
+                    if event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
+                        rows = sorted({index.row() for index in table.selectedIndexes()}, reverse=True) # row index in descending order so the list doesn't shift meaningfully
+                        for row in rows:
+                            table.removeRow(row)
+                            cacheList.pop(row)
+                        QLCache['cache'] = [item['hidden_book_id'] for item in cacheList]
+                table.keyPressEvent = custom_key_press
                 dialog.show()
                 return
 
