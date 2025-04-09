@@ -811,7 +811,7 @@ class AudiobookshelfAction(InterfaceAction):
             return None
 
         # Get list of libraries
-        libraries_url = f"{server_url}/api/libraries"
+        libraries_url = f"{server_url}/api/libraries?minified=1"
         libraries_response = self.api_request(libraries_url, api_key)
         
         if libraries_response is None:
