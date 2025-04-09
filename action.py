@@ -713,9 +713,17 @@ class AudiobookshelfAction(InterfaceAction):
             if CONFIG.get('checkbox_cache_QuickLink_history', False):
                 cacheList.extend([book['hidden_id'] for book in res['results'] if 'hidden_id' in book])
                 QLCache['cache'] = cacheList
-            message = f"{'QuickLink Completed Without Matches.' if res['num_matched'] == 0 else 'QuickLink Matches Found. Confirm Matches via Checkbox and Click ''Link Selected'' to Link Selected Matches'}\nBooks matched: {res['num_matched']}\nBooks failed: {res['num_failed']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds."
+            if res['num_matched'] == 0:
+                message = 'QuickLink Completed Without Matches.'
+            else:
+                message = f"Confirm Matches via Checkbox and Click ''Link Selected'' to Link Selected Matches.\nYou can double click the matched title to open up the book in Audiobookshelf."
+            message += f"\nBooks matched: {res['num_matched']}\nBooks failed: {res['num_failed']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds."
             res['results'].sort(key=lambda row: (not row.get('Link?', False), row['title'].lower())) # Sort by if linkable, then title
             dialog = SyncCompletionDialog(self.gui, "Quick Link Results", message, res['results'], resultsColWidth=0, type="info")
+            def on_cell_double_clicked(row, col):
+                if col == 1 and res['results'][row].get('hidden_abs_id'):
+                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{res['results'][row].get('hidden_abs_id')}")
+            dialog.table_area.findChild(QTableWidget).cellDoubleClicked.connect(on_cell_double_clicked)
             dialog.exec_()
             if hasattr(dialog, 'checked_rows'):
                 for idx in dialog.checked_rows:
