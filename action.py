@@ -544,30 +544,57 @@ class AudiobookshelfAction(InterfaceAction):
                 'response_groups': 'rating'
             })['products']})
 
-        # Update metadata for each book with new values from Audible API if needed
-        log = []
-        for i, book in enumerate(bookList):
-            if 'rating' not in audible_ratings.get(book['ASIN'], {}):
-                log.append({'title': book['metadata'].get('title'), 'ASIN': book['ASIN'], 'error': 'No rating found'})
-                continue
-            log.append({'title': book['metadata'].get('title'), 'ASIN': book['ASIN']})
-            for col_lookup_name, data_location in audible_cols.items():
-                new_value = self.get_nested_value(audible_ratings[book['ASIN']], data_location)
-                if isinstance(new_value, float): # Audible rating is a float, but we want to store it as an int*2 (for half rating) in calibre
-                    new_value = int(new_value*2)
-                if new_value != book['current_values'][col_lookup_name]:
-                    book['metadata'].set(col_lookup_name, new_value)
-                    db.set_metadata(book['book_id'], book['metadata'], set_title=False, set_authors=False)
-                    log[i][col_lookup_name] = f"{book['current_values'][col_lookup_name] if book['current_values'][col_lookup_name] is not None else '-'} >> {new_value}"
+        class AudibleSyncWorker(QThread):
+            progress_update = pyqtSignal(int)
+            finished_signal = pyqtSignal(list)
 
-        log.sort(key=lambda row: (not row.get('error', False), -len(row), row['title'].lower())) # Sort by if error, # of changes, then title
-        SyncCompletionDialog(self.gui, 
-                                "Audible Ratings Updated",
-                                (f"Total books processed: {len(bookList)}\n"
-                                 f"Updated: {sum(1 for d in log if any(key.startswith('#') for key in d.keys()))}\n"
-                                 f"Skipped: {len([d for d in log if len(d) == 2])}\n"
-                                 f"Failed: {sum(1 for d in log if 'error' in d)}"),
-                                log, resultsColWidth=0, type="good").show()
+            def __init__(self, action, db, bookList, audible_ratings, audible_cols):
+                super().__init__()
+                self.action = action
+                self.db = db
+                self.bookList = bookList
+                self.audible_ratings = audible_ratings
+                self.audible_cols = audible_cols
+
+            def run(self):
+                log = []
+                for i, book in enumerate(bookList):
+                    self.progress_update.emit(i)
+                    if 'rating' not in audible_ratings.get(book['ASIN'], {}):
+                        log.append({'title': book['metadata'].get('title'), 'ASIN': book['ASIN'], 'error': 'No rating found'})
+                        continue
+                    log.append({'title': book['metadata'].get('title'), 'ASIN': book['ASIN']})
+                    for col_lookup_name, data_location in audible_cols.items():
+                        new_value = self.action.get_nested_value(audible_ratings[book['ASIN']], data_location)
+                        if isinstance(new_value, float): # Audible rating is a float, but we want to store it as an int*2 (for half rating) in calibre
+                            new_value = int(new_value*2)
+                        if new_value != book['current_values'][col_lookup_name]:
+                            book['metadata'].set(col_lookup_name, new_value)
+                            db.set_metadata(book['book_id'], book['metadata'], set_title=False, set_authors=False)
+                            log[i][col_lookup_name] = f"{book['current_values'][col_lookup_name] if book['current_values'][col_lookup_name] is not None else '-'} >> {new_value}"
+                self.finished_signal.emit(log)
+
+        startTime = time.perf_counter()
+        self.audibleSyncWorker = AudibleSyncWorker(self, db, bookList, audible_ratings, audible_cols)
+        progress_dialog = None
+        if len(audible_ratings)>25:
+            progress_dialog = ProgressDialog(self.gui, "Updating Audible Data...", len(audible_ratings))
+            progress_dialog.show()
+            self.audibleSyncWorker.progress_update.connect(progress_dialog.setValue)
+        def on_finished(log):
+            if progress_dialog:
+                progress_dialog.close()
+            log.sort(key=lambda row: (not row.get('error', False), -len(row), row['title'].lower())) # Sort by if error, # of changes, then title
+            SyncCompletionDialog(self.gui, 
+                                    "Audible Ratings Updated",
+                                    (f"Total books processed: {len(bookList)}\n"
+                                    f"Updated: {sum(1 for d in log if any(key.startswith('#') for key in d.keys()))}\n"
+                                    f"Skipped: {len([d for d in log if len(d) == 2])}\n"
+                                    f"Failed: {sum(1 for d in log if 'error' in d)}"
+                                    f"\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds"),
+                                    log, resultsColWidth=0, type="good").show()
+        self.audibleSyncWorker.finished_signal.connect(on_finished)
+        self.audibleSyncWorker.start()
 
     def quick_link_books(self):
         import difflib
@@ -664,7 +691,8 @@ class AudiobookshelfAction(InterfaceAction):
                                             'Link?': True,
                                             'hidden_book_id': book_id,
                                             'hidden_abs_id': abs_id_list[0]['abs_id'],
-                                            'hidden_metadata': metadata
+                                            'hidden_metadata': metadata,
+                                            **({'Audible Search Results': '\n'.join(item['title'] for item in response['products'])} if DEBUG else {})
                                         })
                                     else:
                                         num_failed += 1
