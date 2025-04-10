@@ -773,6 +773,11 @@ class AudiobookshelfAction(InterfaceAction):
                     abs_id = selected_item.get('id')
                     abs_title = selected_item.get('media', {}).get('metadata', {}).get('title', 'Unknown Title')
                     identifiers = metadata.get('identifiers', {})
+                    if identifiers.get('audiobookshelf_id') is not None: # Already linked, so clear synced data
+                        for config_key, col_lookup_name in CONFIG.items():
+                            if config_key.startswith('column_') and col_lookup_name:
+                                metadata.set(col_lookup_name, None)
+                        db.set_metadata(book_id, metadata, force_changes=True, set_title=False, set_authors=False)
                     identifiers['audiobookshelf_id'] = abs_id
                     if CONFIG.get('checkbox_enable_Audible_ASIN_sync', False):
                         Audible_ASIN = selected_item.get('media').get('metadata').get('asin')
@@ -815,6 +820,9 @@ class AudiobookshelfAction(InterfaceAction):
             log.append({'title': metadata.get('title', ''), 'abs_id': identifiers.get('audiobookshelf_id', '')})
             identifiers.pop('audiobookshelf_id', None)
             metadata.set('identifiers', identifiers)
+            for config_key, col_lookup_name in CONFIG.items():
+                if config_key.startswith('column_') and col_lookup_name:
+                    metadata.set(col_lookup_name, None)
             db.set_metadata(book_id, metadata, force_changes=True, set_title=False, set_authors=False)
         SyncCompletionDialog(self.gui, "Unlinked From Audiobookshelf", 
                              f"{len(selected_ids)} {'book has' if len(selected_ids) == 1 else 'books have'} been unlinked from Audiobookshelf.", 
