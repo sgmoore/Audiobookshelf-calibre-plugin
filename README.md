@@ -78,6 +78,7 @@ the **create new columns** option in the config dropdowns.
 ||||
 | Audiobook Finished?          | Indicates if the audiobook has been finished                  | Yes/No       |
 | Audiobook Finish Date        | The date when the audiobook was finished                      | Date         |
+| Audiobook Days to Finish     | The time between book start and finish as Days:Hrs:Min        | Text         |
 ||||
 | Audiobook Bookmarks          | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments     |
 | Audiobook Collections*       | Collections and Playlists associated with the audiobook       | Text (Tags)  |

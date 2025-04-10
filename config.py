@@ -378,6 +378,20 @@ CUSTOM_COLUMN_DEFAULTS = {
         'api_source': "mediaProgress",
         'data_location': ['finishedAt'],
         'transform': lambda value: datetime.fromtimestamp(int(value/1000)).replace(tzinfo=local_tz),
+    },
+    'column_audiobook_daystofinish': {
+        'column_heading': _("Audiobook Days to Finish"),
+        'datatype': 'text',
+        'description': _("The time between book start and finish formatted as Days:Hrs:Min"),
+        'default_lookup_name': '#abs_daystofinish',
+        'config_label': _('Audiobook Days to Finish:'),
+        'config_tool_tip': _('A "text" column to store the time between book start and finish formatted as Days:Hrs:Min.'),
+        'api_source': "mediaProgress",
+        'data_location': [],
+        'transform': (lambda value: (   lambda delta: f"{delta.days:,d}:{delta.seconds//3600:02d}:{(delta.seconds//60)%60:02d}"
+                                    )(  datetime.fromtimestamp(int(value['finishedAt']/1000)).replace(tzinfo=local_tz) -
+                                        datetime.fromtimestamp(int(value['startedAt']/1000)).replace(tzinfo=local_tz)
+                                    ) if bool(value.get('isFinished')) else None),
         'last_in_group': True,
     },
     'column_audiobook_bookmarks': {
@@ -400,7 +414,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'description': _("Collections and Playlists associated with the audiobook"),
         'default_lookup_name': '#abs_collections',
         'config_label': _('Audiobook Collections*:'),
-        'config_tool_tip': _('A "Text" column to store the names of collections and playlists the audiobook is assocated with as tags.'),
+        'config_tool_tip': _('A "Text" column to store the names of collections and playlists the audiobook is associated with as tags.'),
         'api_source': "collections",
         'data_location': ['collections'],
         'last_in_group': True,
