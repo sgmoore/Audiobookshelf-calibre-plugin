@@ -683,7 +683,7 @@ class AudiobookshelfAction(InterfaceAction):
                                 results.append({
                                     'title': metadata.get('title', f'Book {book_id}'),
                                     'error': f"Audible search found {response['total_results']} books; {len(response['products'])} checked; none matched",
-                                    'hidden_id': book_id
+                                    'hidden_id_for_cache': book_id
                                 })
                         except Exception:
                             num_failed += 1
@@ -711,7 +711,7 @@ class AudiobookshelfAction(InterfaceAction):
             if progress_dialog:
                 progress_dialog.close()
             if CONFIG.get('checkbox_cache_QuickLink_history', False):
-                cacheList.extend([book['hidden_id'] for book in res['results'] if 'hidden_id' in book])
+                cacheList.extend([book['hidden_id_for_cache'] for book in res['results'] if 'hidden_id_for_cache' in book])
                 QLCache['cache'] = cacheList
             if res['num_matched'] == 0:
                 message = 'QuickLink Completed Without Matches.'
