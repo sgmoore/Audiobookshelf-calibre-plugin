@@ -873,33 +873,26 @@ class TitleLayout(QHBoxLayout):
         self.addWidget(about_label)
 
 class CustomColumnComboBox(QComboBox):
-    CREATE_NEW_COLUMN_ITEM = _("Create new column")
     def __init__(self, parent, custom_columns={}, selected_column='', create_column_callback=None):
         super(CustomColumnComboBox, self).__init__(parent)
         self.create_column_callback = create_column_callback
-        self.current_index = 0
-        self.initial_items = ['do not sync']
+        self.current_index = 1
         if create_column_callback is not None:
             self.currentTextChanged.connect(self.current_text_changed)
         self.populate_combo(custom_columns, selected_column)
 
     def populate_combo(self, custom_columns, selected_column, show_lookup_name=True):
+        self.blockSignals(True)
         self.clear()
         self.column_names = []
-        selected_idx = 0
-        if isinstance(self.initial_items, dict):
-            for key in sorted(self.initial_items.keys()):
-                self.column_names.append(key)
-                display_name = self.initial_items[key]
-                self.addItem(display_name)
-                if key == selected_column:
-                    selected_idx = len(self.column_names) - 1
-        else:
-            for item in self.initial_items:
-                self.column_names.append(item)
-                self.addItem(item)
-                if item == selected_column:
-                    selected_idx = len(self.column_names) - 1
+
+        if self.create_column_callback is not None:
+            self.column_names.append('Create new column')
+            self.addItem('Create new column')
+
+        self.column_names.append('do not sync')
+        self.addItem('do not sync')
+        selected_idx = 1
 
         for key in sorted(custom_columns.keys()):
             self.column_names.append(key)
@@ -907,23 +900,18 @@ class CustomColumnComboBox(QComboBox):
             self.addItem(display_name)
             if key == selected_column:
                 selected_idx = len(self.column_names) - 1
-        
-        if self.create_column_callback is not None:
-            self.addItem(self.CREATE_NEW_COLUMN_ITEM)
-            self.column_names.append(self.CREATE_NEW_COLUMN_ITEM)
 
         self.setCurrentIndex(selected_idx)
+        self.blockSignals(False)
 
     def get_selected_column(self):
         selected_column = self.column_names[self.currentIndex()]
-        if selected_column == self.CREATE_NEW_COLUMN_ITEM:
-            selected_column = ''
-        if selected_column == 'do not sync':
+        if selected_column == 'Create new column' or selected_column == 'do not sync':
             selected_column = ''
         return selected_column
 
     def current_text_changed(self, new_text):
-        if new_text == self.CREATE_NEW_COLUMN_ITEM:
+        if new_text == 'Create new column':
             result = self.create_column_callback()
             if not result:
                 self.setCurrentIndex(self.current_index)
