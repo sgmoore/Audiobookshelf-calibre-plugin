@@ -28,7 +28,7 @@ from calibre.constants import numeric_version
 from calibre.devices.usbms.driver import debug_print as root_debug_print
 from calibre.utils.iso8601 import local_tz
 from calibre.utils.config import JSONConfig
-from calibre.gui2 import show_restart_warning, error_dialog
+from calibre.gui2 import show_restart_warning, info_dialog, error_dialog
 from calibre.customize.ui import initialized_plugins
 from calibre.customize import PluginInstallationType
 
@@ -959,11 +959,87 @@ class ABSAccountPopup(QDialog):
         layout.addWidget(self.key_label)
         layout.addWidget(self.key_input)
 
+        self.validate_credentials_button = QPushButton('Validate Account', self)
+        self.validate_credentials_button.clicked.connect(self.validate_audiobookshelf_credentials)
+        layout.addWidget(self.validate_credentials_button)
+
         self.login_button = QPushButton('Save Account', self)
         self.login_button.clicked.connect(self.save_audiobookshelf_account_settings)
         layout.addWidget(self.login_button)
 
+    def validate_audiobookshelf_credentials(self):
+        from urllib.request import Request, urlopen
+        from urllib.error import URLError, HTTPError
+
+        def api_request(url, api_key, post=False):
+            req = Request(url, headers={'Authorization': f'Bearer {api_key}'})
+            if post:
+                req.method = 'POST'
+            try:
+                with urlopen(req, timeout=20) as response:
+                    code = response.getcode()
+                    resp_data = response.read()
+                    json_data = json.loads(resp_data.decode('utf-8'))
+                    return code, json_data
+            except HTTPError as e:
+                code = e.getcode()
+                try:
+                    error_resp = e.read()
+                    error_json = json.loads(error_resp.decode('utf-8'))
+                except Exception:
+                    error_json = None
+                print("HTTPError: API request failed with code", code)
+                return (code, error_json)
+            except URLError as e:
+                print("URLError: API request failed:", e)
+                return None, None
+
+        resp_code, res= api_request(f'{self.url_input.text()}/ping', self.key_input.toPlainText())
+        if resp_code != 200 or res['success'] != True:
+            error_dialog(
+                self.parent().action.gui,
+                'Server Not Accessible',
+                'Server URL not accessible, please check that the URL includes http(s):// and port and is reachable in your browser.',
+                det_msg=res,
+                show=True,
+                show_copy_button=True
+            )
+            return False
+
+        resp_code, res= api_request(f'{self.url_input.text()}/api/authorize', self.key_input.toPlainText(), True)
+        if resp_code != 200:
+            error_dialog(
+                self.parent().action.gui,
+                'API Key Not Valid',
+                'Server is Reachable, but the provided API Key was rejected. Check again and ensure there are no spaces and the word "Bearer" is not included.',
+                det_msg=res,
+                show=True,
+                show_copy_button=True
+            ) #  user username type isActive permissions
+            print(resp_code)
+            print(res)
+            return False
+        else:
+            info_dialog(
+                self.parent().action.gui,
+                'API Key Valid',
+                'URL and API Key are valid!\nSee below for details.',
+                det_msg=json.dumps({
+                    'username': res['user']['username'],
+                    'isActive': res['user']['isActive'],
+                    'type': res['user']['type'],
+                    'canWriteback': res['user']['permissions'].get('update', False),
+                    'permissions': res['user']['permissions'],
+                    'libraries (if accessAllLibraries is not True)': res['user']['librariesAccessible'],
+                }, indent=4),
+                show=True,
+                show_copy_button=True
+            )
+            return True
+
     def save_audiobookshelf_account_settings(self):
+        if not self.validate_audiobookshelf_credentials(self):
+            return
         CONFIG['abs_url'] = self.url_input.text()
         CONFIG['abs_key'] = self.key_input.toPlainText()
 
@@ -1004,7 +1080,6 @@ class CustomColumnComboBox(QComboBox):
     def __init__(self, parent, custom_columns={}, selected_column='', create_column_callback=None):
         super(CustomColumnComboBox, self).__init__(parent)
         self.create_column_callback = create_column_callback
-        self.current_index = 1
         if create_column_callback is not None:
             self.currentTextChanged.connect(self.current_text_changed)
         self.populate_combo(custom_columns, selected_column)
@@ -1030,6 +1105,7 @@ class CustomColumnComboBox(QComboBox):
                 selected_idx = len(self.column_names) - 1
 
         self.setCurrentIndex(selected_idx)
+        self.current_index = selected_idx
         self.blockSignals(False)
 
     def get_selected_column(self):
