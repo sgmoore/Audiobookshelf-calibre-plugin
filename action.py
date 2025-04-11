@@ -331,7 +331,7 @@ class AudiobookshelfAction(InterfaceAction):
             req.method = body[0]
             req.data = json.dumps(body[1]).encode("utf-8")
         try:
-            with urlopen(req, timeout=20) as response:
+            with urlopen(req, timeout=10) as response:
                 resp_data = response.read()
                 return json.loads(resp_data.decode('utf-8'))
         except (HTTPError, URLError):
@@ -545,7 +545,7 @@ class AudiobookshelfAction(InterfaceAction):
             'User-Agent': f'CalibreAudiobookshelfSync/{self.version}',
         }
         req = Request(f"https://api.audible{CONFIG['audibleRegion']}/1.0/catalog/products?{urllib.parse.urlencode(params)}", headers=headers)
-        with urlopen(req, timeout=20) as response:
+        with urlopen(req, timeout=10) as response:
             resp_data = response.read()
             return json.loads(resp_data.decode('utf-8'))
 

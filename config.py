@@ -976,7 +976,7 @@ class ABSAccountPopup(QDialog):
             if post:
                 req.method = 'POST'
             try:
-                with urlopen(req, timeout=20) as response:
+                with urlopen(req, timeout=4) as response:
                     code = response.getcode()
                     resp_data = response.read()
                     json_data = json.loads(resp_data.decode('utf-8'))
