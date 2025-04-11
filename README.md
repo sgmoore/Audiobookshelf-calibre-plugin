@@ -71,13 +71,22 @@ the **create new columns** option in the config dropdowns.
 | Audiobook Last Read Date     | The last date the audiobook was read                          | Date         |
 | Audiobook Precise Progress   | Progress percentage with decimal precision                    | Float        |
 | Audiobook Progress           | Progress percentage as a whole number                         | Integer      |
-| Audiobook Progress Time      | Current audiobook progress time formatted as Hrs:Min          | Text         |
+| Audiobook Progress Time      | How far in the audiobook you are as Hrs:Min                   | Text         |
+| Audiobook Time Remaining     | Time remaining in audiobook as Hrs:Min                        | Text         |
+| Audiobook Listen Time        | Time listened to the audiobook factoring skips as Hrs:Min     | Text         |
+| Audiobook Session Time       | Time spent actually listening factoring speed as Hrs:Min      | Text         |
+| Audiobook Time to Finish     | Time to finish audiobook factoring speed as Hrs:Min           | Text         |
 ||||
 | Audiobook Started?           | Indicates if the audiobook has been started                   | Yes/No       |
 | Audiobook Begin Date         | The date when the audiobook reading began                     | Date         |
 ||||
 | Audiobook Finished?          | Indicates if the audiobook has been finished                  | Yes/No       |
 | Audiobook Finish Date        | The date when the audiobook was finished                      | Date         |
+| Average Playback Speed       | Average Playback Speed of the Audiobook                       | Float        |
+| Max Playback Speed           | Highest Session Playback Speed of the Audiobook               | Float        |
+| Number of Reading Sessions   | The # of sessions you listened to the audiobook               | Integer      |
+| Average Session Length       | The average time spent listening factoring speed as Hrs:Min   | Text         |
+| Number of Days Read          | The # of days you listened to the audiobook                   | Integer      |
 | Audiobook Days to Finish     | The time between book start and finish as Days:Hrs:Min        | Text         |
 ||||
 | Audiobook Bookmarks          | Bookmarks in the format 'title at time' (time as hh:mm:ss)    | Comments     |
@@ -135,6 +144,7 @@ This plugin allows calibre to push metadata back to Audiobookshelf when changed 
 Any of the columns with a * are able to be easily sync'd back to Audiobookshelf.  
 This feature is offered with the disclaimer that this will edit your Audiobooshelf database.
 Make sure you have Audiobookshelf backups enabled in case this borks anything up, which it shouldn't but you never know.  
+The API key provided needs to have permissions to update items for this to work.  
 For Collections/Playlists, this plugin will not create new ones, only update existing.
 
 ## Support

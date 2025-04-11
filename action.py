@@ -342,6 +342,8 @@ class AudiobookshelfAction(InterfaceAction):
         self.Syncing = True
         server_url = CONFIG.get('abs_url', 'http://localhost:13378')
         api_key = CONFIG.get('abs_key', '')
+        columns_to_sync = {k: {**v, 'column_name': CONFIG.get(k)} for k, v in COLUMNS.items() if CONFIG.get(k)}
+        api_sources = list({col_meta['api_source'] for col_meta in columns_to_sync.values()})
 
         db = self.gui.current_db.new_api
         all_book_ids = list(db.search('identifiers:"=audiobookshelf_id:"'))
@@ -362,24 +364,63 @@ class AudiobookshelfAction(InterfaceAction):
                 items_dict[item_id] = item
 
         # Get me data
-        me_url = f"{server_url}/api/me"
-        me_data = self.api_request(me_url, api_key)
-        if me_data is None:
-            show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
-            return
-        # Build dictionary mapping libraryItemId to media progress data (from mediaProgress)
-        media_progress_dict = {}
-        for prog in me_data.get('mediaProgress', []):
-            media_progress_dict[prog.get('libraryItemId')] = {**prog, 'bookmarks': []}
-        for bookmark in me_data.get('bookmarks'):
-            media_progress_dict[bookmark["libraryItemId"]]['bookmarks'].append({
-                "title": bookmark["title"],
-                "time": bookmark["time"],
-            })
+        if 'mediaProgress' in api_sources:
+            me_url = f"{server_url}/api/me"
+            me_data = self.api_request(me_url, api_key)
+            if me_data is None:
+                show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf user data.")
+                return
+            # Build dictionary mapping libraryItemId to media progress data (from mediaProgress)
+            media_progress_dict = {}
+            for prog in me_data.get('mediaProgress', []):
+                media_progress_dict[prog.get('libraryItemId')] = {**prog, 'bookmarks': []}
+            for bookmark in me_data.get('bookmarks'):
+                media_progress_dict[bookmark["libraryItemId"]]['bookmarks'].append({
+                    "title": bookmark["title"],
+                    "time": bookmark["time"],
+                })
 
         # Get collection/playlist data
-        if CONFIG.get('column_audiobook_collections'):
+        if 'collections' in api_sources:
             collections_dict = self.get_abs_collections(server_url, api_key)[0]
+
+        # Get session data
+        if 'sessions' in api_sources:
+            sessions_response = self.api_request(f"{server_url}/api/me/listening-sessions?itemsPerPage=999999", api_key).get('sessions')
+            if sessions_response is None:
+                show_error(self.gui, "API Error", "Failed to retrieve Audiobookshelf sessions.")
+                return
+            else:
+                sessions_dict = {}
+                for session in sessions_response:
+                    sessions_dict.setdefault(session["libraryItemId"], []).append({
+                        "date": session["date"],
+                        "timeListening": session["timeListening"],
+                        'progression': (session['currentTime'] - session['startTime']),
+                        "sessionDuration": (sessionDuration := ((session["updatedAt"] - session["startedAt"]) / 1000)),
+                        "cleanSession": 0.8 <= (sessionSpeed := session["timeListening"] / sessionDuration) <= 4,
+                        "isComplete": (session["startTime"] == 0 and int(session['currentTime']) == int(session['duration'])),
+                        "durationRemaining": durationRemaining if (durationRemaining := int(session['duration'] - session['currentTime'])) > 300 else 0,
+                        "sessionSpeed": sessionSpeed,
+                    })
+                for item_id, sessions in sessions_dict.items():
+                    if len(sessions) > 1 and any(s.get('isComplete') for s in sessions):
+                        sessions = [s for s in sessions if not s.get("isComplete", False)]
+                    sessions_dict[item_id] = {
+                        'sessions': sessions,
+                        'session_count': len(sessions),
+                        'distinct_date_count': len({s["date"] for s in sessions}),
+                        'total_time_listening': sum(s["timeListening"] for s in sessions),
+                        'total_session_duration': sum(s["sessionDuration"] for s in sessions),
+                        'total_progression': sum(s["progression"] for s in sessions),
+                        'filtered_session_count': len(filtered_sessions := [s for s in sessions if s["cleanSession"]]),
+                        'filtered_date_count': len({s["date"] for s in filtered_sessions}),
+                        'filtered_time_listening': (filtered_time_listening := sum(s["timeListening"] for s in filtered_sessions)),
+                        'filtered_session_duration': (filtered_session_duration := sum(s["sessionDuration"] for s in filtered_sessions)),
+                        'filtered_avg_session_duration': filtered_session_duration/len(filtered_sessions) if filtered_sessions else None,
+                        'filtered_avg_speed': filtered_time_listening / filtered_session_duration if filtered_session_duration else None,
+                        'filtered_max_speed': max((s["sessionSpeed"] for s in filtered_sessions), default=None),
+                    }
 
         class ABSSyncWorker(QThread):
             progress_update = pyqtSignal(int)
@@ -406,7 +447,6 @@ class AudiobookshelfAction(InterfaceAction):
                         results.append({'title': metadata.get('title', f'Book {book_id}'), 'error': 'Audiobookshelf item not found'})
                         num_skip += 1
                         continue
-                    progress_data = media_progress_dict.get(abs_id, {})
 
                     result = {'title': metadata.get('title', f'Book {book_id}')}
                     keys_values_to_update = {}
@@ -419,28 +459,27 @@ class AudiobookshelfAction(InterfaceAction):
                             identifiers['audible'] = Audible_ASIN
                             keys_values_to_update['identifiers'] = identifiers
                             result['Audible ASIN'] = f"{current_Audible_ASIN if current_Audible_ASIN is not None else '-'} >> {Audible_ASIN}"
-                    
+
                     # For each custom column, use api_source and data_location for lookup
-                    for config_name, col_meta in COLUMNS.items():
-                        column_name = CONFIG.get(config_name, '')
-                        if not column_name:  # Skip if column not configured
-                            continue
-                        
+                    for col_meta in columns_to_sync.values():
+                        column_name = col_meta.get('column_name')
                         data_location = col_meta.get('data_location', [])
-                        api_source = col_meta.get('api_source', '')
+                        api_source = col_meta.get('api_source')
                         value = None
-                        
+
                         if api_source == "mediaProgress":
-                            value = self.action.get_nested_value(progress_data, data_location)
+                            value = self.action.get_nested_value(media_progress_dict.get(abs_id, {}), data_location)
                             if col_meta['column_heading'] == "Audiobook Started" and value is None:
                                 value = True
                         elif api_source == "lib_items":
                             value = self.action.get_nested_value(item_data, data_location)
+                        elif api_source == "sessions":
+                            value = self.action.get_nested_value(sessions_dict.get(abs_id, {}), data_location)
                         elif api_source == "collections":
                             value = collections_dict.get(abs_id, [])
                         else:
                             continue
-                        
+
                         if value is not None:
                             if 'transform' in col_meta and callable(col_meta['transform']):
                                 value = col_meta['transform'](value)
@@ -1100,8 +1139,13 @@ class LinkDialog(QDialog):
         book_label = QLabel(book_label_text)
         book_label.setWordWrap(True)
         layout.addWidget(book_label)
-        if calibre_metadata.get('identifiers', {}).get('audiobookshelf_id') is not None:
-            already_linked_label = QLabel(f'<span style="color:red">This book is already linked to an Audiobookshelf item.</span>')
+        if (linked_book_id := calibre_metadata.get('identifiers', {}).get('audiobookshelf_id')) is not None:
+            linked_book_title = next(
+                (item.get('media', {}).get('metadata', {}).get('title', '')
+                for item in items if item.get('id') == linked_book_id),
+                "Unknown Title"
+            )
+            already_linked_label = QLabel(f'<span style="color:red">This book is already linked to Audiobookshelf item <b>{linked_book_title}</b>.</span>')
             layout.addWidget(already_linked_label)
 
         self.table = QTableWidget(len(items), 3)
@@ -1119,26 +1163,28 @@ class LinkDialog(QDialog):
             metadata = item.get('media', {}).get('metadata', {})
             abs_title = metadata.get('title', '').lower()
             abs_author = metadata.get('authorName', '').lower()
-            
+
             # Calculate match score: 2 for title+author match, 1 for either match, 0 for no match
             score = 0
             if abs_title == calibre_title:
                 score += 1
             if abs_author in calibre_authors:
                 score += 1
-                
+            if linked_book_id is not None and abs_title == linked_book_title.lower():
+                score += 5  # Boost score for already linked book
+
             # Return tuple: (negative score for reverse sort, title for alphabetical)
             return (-score, abs_title)
-            
+
         sorted_items = sorted(items, key=sort_key)
         self.items = sorted_items  # Update items list with sorted version
         
         # Create a light blue color for highlighting
         highlight_color = QColor(173, 216, 230)  # Light blue RGB values
-        
+
         # Create checkmark icon for reading/read status
         checkmark_icon = QIcon.ic('ok.png')
-        
+
         # Get list of library item IDs from me_data
         reading_ids = set()
         if me_data and 'mediaProgress' in me_data:

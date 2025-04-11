@@ -38,6 +38,8 @@ __copyright__ = '2025, jbhul'
 '''
 Each entry in the below dict has the following keys:
 Each entry is keyed by the name of the config item used to store the selected column's lookup name
+  first_in_group (optional): If present and true, a separator will be added before this item in the Config UI.
+                             If this is a string a QLabel with bolded string value will be added below the separator.
   column_heading: Default custom column heading
   datatype: Default custom column datatype
   is_multiple (optional): tuple (bool, bool), only for text columns. First bool is make default new column multiple values (tags). Second bool is only is_multiple columns in dropdown.
@@ -50,10 +52,10 @@ Each entry is keyed by the name of the config item used to store the selected co
   api_source: Source of the data; "lib_items" for the GET /api/libraries/{ID}/items endpoint,
               "mediaProgress" for the GET /api/me endpoint,
               "collections" for the combined GET /api/collections /api/playlists endpoints,
-              "audible" for the GET api.audible.com/1.0/catalog/products endpoint.
+              "audible" for the GET api.audible.com/1.0/catalog/products endpoint,
+              "sessions" for the GET /api/me/listening-sessions endpoint.
   data_location: Reference (as a list of keys) to the value in the API response.
   transform (optional): lambda expression to be applied in formatting the value.
-  last_in_group (optional): if present and true, a separator will be added after this item in the Config UI.
 '''
 CUSTOM_COLUMN_DEFAULTS = {
     'column_audiobook_title': {
@@ -61,7 +63,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Title of the audiobook"),
         'default_lookup_name': '#abs_title',
-        'config_label': _('Audiobook Title*:'),
+        'config_label': _('Title*:'),
         'config_tool_tip': _('A "Text" column to store the title from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'title'],
@@ -71,7 +73,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Subtitle of the audiobook"),
         'default_lookup_name': '#abs_subtitle',
-        'config_label': _('Audiobook Subtitle*:'),
+        'config_label': _('Subtitle*:'),
         'config_tool_tip': _('A "Text" column to store the subtitle from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'subtitle'],
@@ -81,7 +83,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'comments',
         'description': _("Description of the audiobook"),
         'default_lookup_name': '#abs_description',
-        'config_label': _('Audiobook Description*:'),
+        'config_label': _('Description*:'),
         'config_tool_tip': _('A "Long text" column to store the description from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'description'],
@@ -93,7 +95,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'is_names': True},
         'description': _("Narrator name(s)"),
         'default_lookup_name': '#abs_narrator',
-        'config_label': _('Audiobook Narrator*:'),
+        'config_label': _('Narrator*:'),
         'config_tool_tip': _('A "Text" column to store the narrator name(s) from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'narratorName'],
@@ -106,7 +108,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'is_names': True},
         'description': _("Author name(s)"),
         'default_lookup_name': '#abs_author',
-        'config_label': _('Audiobook Author*:'),
+        'config_label': _('Author*:'),
         'config_tool_tip': _('A "Text" column to store the author name(s) from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'authorName'],
@@ -117,7 +119,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'series',
         'description': _("Series of the audiobook"),
         'default_lookup_name': '#abs_series',
-        'config_label': _('Audiobook Series*:'),
+        'config_label': _('Series*:'),
         'config_tool_tip': _('A "series" column to store the series from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'seriesName'],
@@ -128,7 +130,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Language of the audiobook"),
         'default_lookup_name': '#abs_language',
-        'config_label': _('Audiobook Language*:'),
+        'config_label': _('Language*:'),
         'config_tool_tip': _('A "Text" column to store the language from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'language'],
@@ -139,7 +141,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'is_multiple': (True, True),
         'description': _("Genres tagged for the audiobook."),
         'default_lookup_name': '#abs_genres',
-        'config_label': _('Audiobook Genres*:'),
+        'config_label': _('Genres*:'),
         'config_tool_tip': _('A "Text" column to store the genres from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'genres'],
@@ -151,7 +153,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'is_multiple': (True, True),
         'description': _("Tags associated with the audiobook."),
         'default_lookup_name': '#abs_tags',
-        'config_label': _('Audiobook Tags*:'),
+        'config_label': _('Tags*:'),
         'config_tool_tip': _('A "Text" column to store the tags from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'tags'],
@@ -162,7 +164,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Publisher of the audiobook"),
         'default_lookup_name': '#abs_publisher',
-        'config_label': _('Audiobook Publisher*:'),
+        'config_label': _('Publisher*:'),
         'config_tool_tip': _('A "Text" column to store the publisher from the audiobook metadata.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'publisher'],
@@ -172,7 +174,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'int',
         'description': _("Year the audiobook was published"),
         'default_lookup_name': '#abs_publish_year',
-        'config_label': _('Audiobook Publish Year*:'),
+        'config_label': _('Publish Year*:'),
         'config_tool_tip': _('A "Integer" column to store the year the audiobook was published.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'publishedYear'],
@@ -183,7 +185,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'bool',
         'description': _("Indicates if the audiobook is abridged"),
         'default_lookup_name': '#abs_abridged',
-        'config_label': _('Audiobook Abridged*:'),
+        'config_label': _('Abridged?*:'),
         'config_tool_tip': _('A "Yes/No" column to indicate if the audiobook is abridged.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'abridged'],
@@ -194,20 +196,20 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'bool',
         'description': _("Indicates if the audiobook is explicit"),
         'default_lookup_name': '#abs_explicit',
-        'config_label': _('Audiobook Explicit*:'),
+        'config_label': _('Explicit?*:'),
         'config_tool_tip': _('A "Yes/No" column to indicate if the audiobook is explicit.'),
         'api_source': "lib_items",
         'data_location': ['media', 'metadata', 'explicit'],
         'transform': (lambda value: bool(value)),
-        'last_in_group': True,
     },
     'column_audiobook_size': {
+        'first_in_group': True,
         'column_heading': _("Audiobook Size"),
         'datatype': 'int',
         'additional_params': {'number_format': "{:,d} MB"},
         'description': _("Size of the audiobook in MB"),
         'default_lookup_name': '#abs_size',
-        'config_label': _('Audiobook Size:'),
+        'config_label': _('Size:'),
         'config_tool_tip': _('An "Integer" column to store the audiobook size in MB (formatted with commas as thousands separators).'),
         'api_source': "lib_items",
         'data_location': ['size'],
@@ -218,7 +220,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Duration of the audiobook formatted (Hrs:Min)"),
         'default_lookup_name': '#abs_duration',
-        'config_label': _('Audiobook Duration:'),
+        'config_label': _('Duration:'),
         'config_tool_tip': _('A "Text" column to store the duration of the audiobook in Hrs:Min format.'),
         'api_source': "lib_items",
         'data_location': ['media', 'duration'],
@@ -229,7 +231,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'int',
         'description': _("Number of files that comprise the audiobook"),
         'default_lookup_name': '#abs_numfiles',
-        'config_label': _('Audiobook File Count:'),
+        'config_label': _('File Count:'),
         'config_tool_tip': _('An "Integer" column to store the number of files in the audiobook.'),
         'api_source': "lib_items",
         'data_location': ['numFiles'],
@@ -239,18 +241,18 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'int',
         'description': _("Number of chapters in the audiobook"),
         'default_lookup_name': '#abs_numchapters',
-        'config_label': _('Audiobook Chapter Count:'),
+        'config_label': _('Chapter Count:'),
         'config_tool_tip': _('An "Integer" column to store the number of chapters in the audiobook.'),
         'api_source': "lib_items",
         'data_location': ['media', 'numChapters'],
-        'last_in_group': True,
     },
     'column_audiobookshelf_library': {
+        'first_in_group': 'Audiobookshelf',
         'column_heading': _("Audiobookshelf Library"),
         'datatype': 'text',
         'description': _("Audiobookshelf Library the audiobook is located in"),
         'default_lookup_name': '#abs_library',
-        'config_label': _('Audiobookshelf Library:'),
+        'config_label': _('Library:'),
         'config_tool_tip': _('A "Text" column to store the Audiobookshelf Library the audiobook is located in.'),
         'api_source': "lib_items",
         'data_location': ['libraryName'],
@@ -260,7 +262,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'datetime',
         'description': _("The date the audiobook was added to Audiobookshelf"),
         'default_lookup_name': '#abs_addeddate',
-        'config_label': _('Audiobookshelf Date Added:'),
+        'config_label': _('Date Added:'),
         'config_tool_tip': _('A "Date" column to store the date the audiobook was added to Audiobookshelf.'),
         'api_source': "lib_items",
         'data_location': ['addedAt'],
@@ -271,7 +273,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Full path to the audiobook"),
         'default_lookup_name': '#abs_fullpath',
-        'config_label': _('Audiobookshelf Full Path:'),
+        'config_label': _('Full Path:'),
         'config_tool_tip': _('A "Text" column to store the full path to the audiobook.'),
         'api_source': "lib_items",
         'data_location': ['path'],
@@ -281,18 +283,18 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Relative Path of the audiobook"),
         'default_lookup_name': '#abs_relpath',
-        'config_label': _('Audiobookshelf Relative Path:'),
+        'config_label': _('Relative Path:'),
         'config_tool_tip': _('A "Text" column to store the relative (from library) path to the audiobook.'),
         'api_source': "lib_items",
         'data_location': ['relPath'],
-        'last_in_group': True,
     },
     'column_audiobook_lastread': {
+        'first_in_group': True,
         'column_heading': _("Audiobook Last Read Date"),
         'datatype': 'datetime',
         'description': _("The last date the audiobook was read"),
         'default_lookup_name': '#abs_lastread',
-        'config_label': _('Audiobook Last Read Date:'),
+        'config_label': _('Last Read Date:'),
         'config_tool_tip': _('A "Date" column to store the last date the audiobook was read.'),
         'api_source': "mediaProgress",
         'data_location': ['lastUpdate'],
@@ -304,7 +306,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'number_format': "{:.2f}%"},
         'description': _("Progress percentage with decimal precision"),
         'default_lookup_name': '#abs_progfloat',
-        'config_label': _('Audiobook Precise Progress (#.##%):'),
+        'config_label': _('Precise Progress (#.##%):'),
         'config_tool_tip': _('A "Float" column to store the precise reading progress with decimal places.'),
         'api_source': "mediaProgress",
         'data_location': ['progress'],
@@ -316,7 +318,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'number_format': "{}%"},
         'description': _("Progress percentage as a whole number"),
         'default_lookup_name': '#abs_progint',
-        'config_label': _('Audiobook Progress (#%):'),
+        'config_label': _('Progress (#%):'),
         'config_tool_tip': _('An "Integer" column to store the reading progress (0-100).'),
         'api_source': "mediaProgress",
         'data_location': ['progress'],
@@ -327,14 +329,70 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'text',
         'description': _("Current audiobook progress time formatted as Hrs:Min"),
         'default_lookup_name': '#abs_progresstime',
-        'config_label': _('Audiobook Progress Time:'),
+        'config_label': _('Progress Time:'),
         'config_tool_tip': _('A "Text" column to store the progress time formatted as Hrs:Min.'),
         'api_source': "mediaProgress",
         'data_location': ['currentTime'],
         'transform': (lambda value: f"{int(float(value)//3600)}:{int((float(value)%3600)//60):02d}"),
-        'last_in_group': True,
+    },
+    'column_audiobook_progress_time_remaining': {
+        'column_heading': _("Audiobook Time Remaining"),
+        'datatype': 'text',
+        'description': _("Time remaining in audiobook as Hrs:Min"),
+        'default_lookup_name': '#abs_progresstimeremaining',
+        'config_label': _('Time Remaining:'),
+        'config_tool_tip': _('A "Text" column to store the time remaining in audiobook formatted as Hrs:Min.'),
+        'api_source': "mediaProgress",
+        'data_location': [],
+        'transform': (lambda value: (
+            f"{int(progress_time_remaining // 3600)}:{int((progress_time_remaining % 3600) // 60):02d}"
+            if (progress_time_remaining := value["duration"] - value['currentTime']) is not None
+            else '-'
+        )),
+    },
+    'column_audiobook_listen_time': {
+        'column_heading': _("Audiobook Listen Time"),
+        'datatype': 'text',
+        'description': _("Current audiobook listen time formatted as Hrs:Min"),
+        'default_lookup_name': '#abs_listentime',
+        'config_label': _('Listen Time:'),
+        'config_tool_tip': _('A "Text" column to store the listen time factoring skips formatted as Hrs:Min.'),
+        'api_source': "sessions",
+        'data_location': ['total_time_listening'],
+        'transform': (lambda value: f"{int(float(value)//3600)}:{int((float(value)%3600)//60):02d}"),
+    },
+    'column_audiobook_session_time': {
+        'column_heading': _("Audiobook Session Time"),
+        'datatype': 'text',
+        'description': _("Current audiobook session time formatted as Hrs:Min"),
+        'default_lookup_name': '#abs_sessiontime',
+        'config_label': _('Session Time:'),
+        'config_tool_tip': _('A "Text" column to store the session time factoring speed formatted as Hrs:Min.'),
+        'api_source': "sessions",
+        'data_location': [],
+        'transform': (lambda value: (
+            f"{int(est_session_time // 3600)}:{int((est_session_time % 3600) // 60):02d}"
+            if (speed := value.get('filtered_avg_speed')) and (est_session_time := value.get('total_progression') / speed)
+            else None
+        )),
+    },
+    'column_audiobook_session_time_remaining': {
+        'column_heading': _("Audiobook Time to Finish"),
+        'datatype': 'text',
+        'description': _("Time to finish audiobook factoring speed as Hrs:Min"),
+        'default_lookup_name': '#abs_sessiontimeremaining',
+        'config_label': _('Time to Finish:'),
+        'config_tool_tip': _('A "Text" column to store the time to finish audiobook factoring speed formatted as Hrs:Min.'),
+        'api_source': "sessions",
+        'data_location': [],
+        'transform': (lambda value: (
+            f"{int(est_session_time_remaining // 3600)}:{int((est_session_time_remaining % 3600) // 60):02d}"
+            if (speed := value.get('filtered_avg_speed')) and (est_session_time_remaining := (min((s["durationRemaining"] for s in value['sessions']))) / speed) is not None
+            else '-'
+        )),
     },
     'column_audiobook_started': {
+        'first_in_group': True,
         'column_heading': _("Audiobook Started?"),
         'datatype': 'bool',
         'description': _("Indicates if the audiobook has been started"),
@@ -350,14 +408,14 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'datetime',
         'description': _("The date when the audiobook reading began"),
         'default_lookup_name': '#abs_begindate',
-        'config_label': _('Audiobook Begin Date:'),
+        'config_label': _('Begin Date:'),
         'config_tool_tip': _('A "Date" column to store when the audiobook reading began.'),
         'api_source': "mediaProgress",
         'data_location': ['startedAt'],
         'transform': lambda value: datetime.fromtimestamp(int(value/1000)).replace(tzinfo=local_tz),
-        'last_in_group': True,
     },
     'column_audiobook_finished': {
+        'first_in_group': True,
         'column_heading': _("Audiobook Finished?"),
         'datatype': 'bool',
         'description': _("Indicates if the audiobook has been finished"),
@@ -373,18 +431,71 @@ CUSTOM_COLUMN_DEFAULTS = {
         'datatype': 'datetime',
         'description': _("The date when the audiobook was finished"),
         'default_lookup_name': '#abs_finishdate',
-        'config_label': _('Audiobook Finish Date:'),
+        'config_label': _('Finish Date:'),
         'config_tool_tip': _('A "Date" column to store when the audiobook was finished.'),
         'api_source': "mediaProgress",
         'data_location': ['finishedAt'],
         'transform': lambda value: datetime.fromtimestamp(int(value/1000)).replace(tzinfo=local_tz),
+    },
+    'column_audiobook_avg_playback_speed': {
+        'column_heading': _("Audiobook Average Playback Speed"),
+        'datatype': 'float',
+        'additional_params': {'number_format': "{:.2f}x"},
+        'description': _("Average Audiobook Playback Speed"),
+        'default_lookup_name': '#abs_avgspeed',
+        'config_label': _('Average Playback Speed:'),
+        'config_tool_tip': _('An "Float" column to store the Average Playback Speed of the Audiobook.'),
+        'api_source': "sessions",
+        'data_location': ['filtered_avg_speed'],
+    },
+        'column_audiobook_max_playback_speed': {
+        'column_heading': _("Audiobook Max Playback Speed"),
+        'datatype': 'float',
+        'additional_params': {'number_format': "{:.2f}x"},
+        'description': _("Highest Audiobook Playback Speed"),
+        'default_lookup_name': '#abs_maxspeed',
+        'config_label': _('Max Playback Speed:'),
+        'config_tool_tip': _('An "Float" column to store the Highest Session Playback Speed of the Audiobook.'),
+        'api_source': "sessions",
+        'data_location': ['filtered_max_speed'],
+    },
+    'column_audiobook_session_count': {
+        'column_heading': _("Audiobook # of Reading Sessions"),
+        'datatype': 'int',
+        'description': _("The # of sessions you listened to the audiobook"),
+        'default_lookup_name': '#abs_sessioncount',
+        'config_label': _('# of Reading Sessions:'),
+        'config_tool_tip': _('An "Integer" column to store when the number of times you did a playback session of the Audiobook.'),
+        'api_source': "sessions",
+        'data_location': ['session_count'],
+    },
+    'column_audiobook_avg_session_length': {
+        'column_heading': _("Audiobook Avg Session Length"),
+        'datatype': 'text',
+        'description': _("The average time spent actually listening to the audiobook factoring speed as Hrs:Min"),
+        'default_lookup_name': '#abs_avgsessionlength',
+        'config_label': _('Average Session Length:'),
+        'config_tool_tip': _('An "Text" column to store when the average time spent actually listening to the audiobook factoring speed as Hrs:Min.'),
+        'api_source': "sessions",
+        'data_location': ['filtered_avg_session_duration'],
+        'transform': (lambda value: f"{int(float(value)//3600)}:{int((float(value)%3600)//60):02d}"),
+    },
+    'column_audiobook_reading_day_count': {
+        'column_heading': _("Audiobook # of Days Read"),
+        'datatype': 'int',
+        'description': _("The # of days you listened to the audiobook"),
+        'default_lookup_name': '#abs_readingdaycount',
+        'config_label': _('# of Days Read:'),
+        'config_tool_tip': _('An "Integer" column to store when the number of days you did a playback session of the Audiobook.'),
+        'api_source': "sessions",
+        'data_location': ['distinct_date_count'],
     },
     'column_audiobook_daystofinish': {
         'column_heading': _("Audiobook Days to Finish"),
         'datatype': 'text',
         'description': _("The time between book start and finish formatted as Days:Hrs:Min"),
         'default_lookup_name': '#abs_daystofinish',
-        'config_label': _('Audiobook Days to Finish:'),
+        'config_label': _('Days to Finish:'),
         'config_tool_tip': _('A "text" column to store the time between book start and finish formatted as Days:Hrs:Min.'),
         'api_source': "mediaProgress",
         'data_location': [],
@@ -392,14 +503,14 @@ CUSTOM_COLUMN_DEFAULTS = {
                                     )(  datetime.fromtimestamp(int(value['finishedAt']/1000)).replace(tzinfo=local_tz) -
                                         datetime.fromtimestamp(int(value['startedAt']/1000)).replace(tzinfo=local_tz)
                                     ) if bool(value.get('isFinished')) else None),
-        'last_in_group': True,
     },
     'column_audiobook_bookmarks': {
+        'first_in_group': True,
         'column_heading': _("Audiobook Bookmarks"),
         'datatype': 'comments',
         'description': _("Bookmarks in the format 'title at time' (time as hh:mm:ss)"),
         'default_lookup_name': '#abs_bookmarks',
-        'config_label': _('Audiobook Bookmarks:'),
+        'config_label': _('Bookmarks:'),
         'config_tool_tip': _('A "Long text" column to store the audiobook bookmarks with timestamps'),
         'api_source': "mediaProgress",
         'data_location': ['bookmarks'],
@@ -413,19 +524,19 @@ CUSTOM_COLUMN_DEFAULTS = {
         'is_multiple': (True, True),
         'description': _("Collections and Playlists associated with the audiobook"),
         'default_lookup_name': '#abs_collections',
-        'config_label': _('Audiobook Collections*:'),
+        'config_label': _('Collections*:'),
         'config_tool_tip': _('A "Text" column to store the names of collections and playlists the audiobook is associated with as tags.'),
         'api_source': "collections",
         'data_location': ['collections'],
-        'last_in_group': True,
     },
     'column_audible_avgrating': {
+        'first_in_group': 'Audible',
         'column_heading': _("Audible Average Rating"),
         'datatype': 'rating',
         'additional_params': {'allow_half_stars': True},
         'description': _("Average overall rating on Audible"),
         'default_lookup_name': '#abs_avgrating',
-        'config_label': _('Audible Average Rating:'),
+        'config_label': _('Average Rating:'),
         'config_tool_tip': _('A "rating" column to store the average overall rating from Audible with half stars.'),
         'api_source': "audible",
         'data_location': ['rating', 'overall_distribution', 'display_stars'],
@@ -436,7 +547,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'allow_half_stars': True},
         'description': _("Average Performance rating on Audible"),
         'default_lookup_name': '#abs_avgperfrating',
-        'config_label': _('Audible Average Performance Rating:'),
+        'config_label': _('Average Performance Rating:'),
         'config_tool_tip': _('A "rating" column to store the average performance rating from Audible with half stars.'),
         'api_source': "audible",
         'data_location': ['rating', 'performance_distribution', 'display_stars'],
@@ -447,7 +558,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'allow_half_stars': True},
         'description': _("Average Story rating on Audible"),
         'default_lookup_name': '#abs_avgstoryrating',
-        'config_label': _('Audible Average Story Rating:'),
+        'config_label': _('Average Story Rating:'),
         'config_tool_tip': _('A "rating" column to store the average story rating from Audible with half stars.'),
         'api_source': "audible",
         'data_location': ['rating', 'story_distribution', 'display_stars'],
@@ -458,7 +569,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'number_format': "{:,d}"},
         'description': _("Number of ratings on Audible"),
         'default_lookup_name': '#abs_numratings',
-        'config_label': _('Audible Rating Count:'),
+        'config_label': _('Rating Count:'),
         'config_tool_tip': _('An "Integer" column to store the number of (star) ratings on Audible.'),
         'api_source': "audible",
         'data_location': ['rating', 'overall_distribution', 'num_ratings'],
@@ -469,7 +580,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'additional_params': {'number_format': "{:,d}"},
         'description': _("Number of reviews on Audible"),
         'default_lookup_name': '#abs_numreviews',
-        'config_label': _('Audible Review Count:'),
+        'config_label': _('Review Count:'),
         'config_tool_tip': _('An "Integer" column to store the number of (text) reviews on Audible.'),
         'api_source': "audible",
         'data_location': ['rating', 'num_reviews'],
@@ -716,6 +827,11 @@ class ConfigWidget(QWidget):
         return layout
 
     def create_custom_column_controls(self, columns_group_box_layout, custom_col_name, min_width=300):
+        form_layout = columns_group_box_layout
+        if fig := CUSTOM_COLUMN_DEFAULTS[custom_col_name].get('first_in_group', False):
+            form_layout.addRow(create_separator())
+            if isinstance(fig, str):
+                form_layout.addRow(QLabel(f'<b>{fig}</b>', self))
         current_Location_label = QLabel(CUSTOM_COLUMN_DEFAULTS[custom_col_name]['config_label'], self)
         current_Location_label.setToolTip(CUSTOM_COLUMN_DEFAULTS[custom_col_name]['config_tool_tip'])
         create_column_callback = partial(self.create_custom_column, custom_col_name) if SUPPORTS_CREATE_CUSTOM_COLUMN else None
@@ -723,10 +839,8 @@ class ConfigWidget(QWidget):
         custom_column_combo = CustomColumnComboBox(self, avail_columns, create_column_callback=create_column_callback)
         custom_column_combo.setMinimumWidth(min_width)
         current_Location_label.setBuddy(custom_column_combo)
-        form_layout = columns_group_box_layout
         form_layout.addRow(current_Location_label, custom_column_combo)
-        if CUSTOM_COLUMN_DEFAULTS[custom_col_name].get('last_in_group', False):
-            form_layout.addRow(create_separator())
+
         self.sync_custom_columns[custom_col_name]['combo_box'] = custom_column_combo
         return custom_column_combo
 
