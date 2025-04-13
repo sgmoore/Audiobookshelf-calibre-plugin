@@ -70,8 +70,7 @@ class AudiobookshelfAction(InterfaceAction):
         base = self.interface_action_base_plugin
         self.version = f'{base.name} (v{".".join(map(str, base.version))})'
         # Set up toolbar button icon and left-click action
-        icon = get_icons('images/abs_icon.png')
-        self.qaction.setIcon(icon)
+        self.qaction.setIcon(get_icons('images/abs_icon.png'))
         self.qaction.triggered.connect(self.sync_from_audiobookshelf)
         # Right-click menu (already includes left-click action)
         menu = self.qaction.menu()
@@ -167,13 +166,12 @@ class AudiobookshelfAction(InterfaceAction):
         text = get_resources('about.txt').decode('utf-8')
         if DEBUG:
             text += '\n\nRunning in debug mode'
-        icon = get_icons('images/abs_icon.png')
         about_dialog = MessageBox(
             MessageBox.INFO,
             f'About {self.version}',
             text,
             det_msg='',
-            q_icon=icon,
+            q_icon=get_icons('images/abs_icon.png'),
             show_copy_button=False,
             parent=None,
         )
@@ -210,10 +208,12 @@ class AudiobookshelfAction(InterfaceAction):
         message = (f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library.\n\n"
         "Double Click the title to open book in Audiobookshelf.")
         dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, resultsColWidth=0, type="info")
+        table = dialog.table_area.findChild(QTableWidget)
         def on_cell_double_clicked(row, col):
-            if col == 0:
-                open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[row].get('hidden_id')}")
-        dialog.table_area.findChild(QTableWidget).cellDoubleClicked.connect(on_cell_double_clicked)
+            print(table.get_column_index("title"))
+            if col == 1:
+                open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[table.item(row, 0).text()].get('hidden_id')}")
+        table.cellDoubleClicked.connect(on_cell_double_clicked)
         dialog.show()
 
     def scheduled_sync(self):
@@ -668,10 +668,12 @@ class AudiobookshelfAction(InterfaceAction):
                 table = dialog.table_area.findChild(QTableWidget)
                 def custom_key_press(event):
                     if event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
-                        rows = sorted({index.row() for index in table.selectedIndexes()}, reverse=True) # row index in descending order so the list doesn't shift meaningfully
-                        for row in rows:
+                        rows_to_remove = sorted({index.row() for index in table.selectedIndexes()}, reverse=True) # row index in descending order so the list doesn't shift meaningfully
+                        cache_to_remove = sorted({int(table.item(row, 0).text()) for row in rows_to_remove}, reverse=True) # same for cache items
+                        for row in rows_to_remove:
                             table.removeRow(row)
-                            cacheList.pop(row)
+                        for item in cache_to_remove:
+                            cacheList.pop(item)
                         QLCache['cache'] = [item['hidden_book_id'] for item in cacheList]
                 table.keyPressEvent = custom_key_press
                 dialog.show()
@@ -787,10 +789,11 @@ class AudiobookshelfAction(InterfaceAction):
             message += f"\nBooks matched: {res['num_matched']}\nBooks failed: {res['num_failed']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds."
             res['results'].sort(key=lambda row: (not row.get('Link?', False), row['title'].lower())) # Sort by if linkable, then title
             dialog = SyncCompletionDialog(self.gui, "Quick Link Results", message, res['results'], resultsColWidth=0, type="info")
+            table = dialog.table_area.findChild(QTableWidget)
             def on_cell_double_clicked(row, col):
-                if col == 1 and res['results'][row].get('hidden_abs_id'):
-                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{res['results'][row].get('hidden_abs_id')}")
-            dialog.table_area.findChild(QTableWidget).cellDoubleClicked.connect(on_cell_double_clicked)
+                if col == 3 and res['results'][table.item(row, 0).text()].get('hidden_abs_id'):
+                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{res['results'][table.item(row, 0).text()].get('hidden_abs_id')}")
+            table.cellDoubleClicked.connect(on_cell_double_clicked)
             dialog.exec_()
             if hasattr(dialog, 'checked_rows'):
                 for idx in dialog.checked_rows:
@@ -1032,14 +1035,13 @@ class SyncCompletionDialog(QDialog):
         ok_button.setIcon(QIcon.ic('ok.png'))
         ok_button.clicked.connect(self.accept)
         ok_button.setDefault(True)
-        if results and table.horizontalHeaderItem(table.columnCount() - 1).text() == 'Link?':
+        if results and table.horizontalHeaderItem(1).text() == 'Link?':
             ok_button.setText('Link Selected')
             ok_button.setIcon(QIcon.ic('insert-link.png'))
             def link_callback():
-                link_index = table.columnCount() - 1
                 self.checked_rows = []
                 for row in range(table.rowCount()):
-                    item = table.item(row, link_index)
+                    item = table.item(row, 1)
                     if item and item.checkState() == Qt.Checked:
                         self.checked_rows.append(row)
                 self.accept()
@@ -1051,36 +1053,43 @@ class SyncCompletionDialog(QDialog):
         # Get all possible headers from results (ignoring hidden_ prefix) and save as set
         all_headers = {key for result in results for key in result.keys() if not key.startswith('hidden_')}
 
-        # Organize headers: title first, custom columns in middle, then messages, checkbox last
-        headers = ['title']
+        # Organize headers: idx very left hidden, checkbox left for QL, title first, messages in middle, custom columns last
+        headers = ['idx', 'title']
         custom_columns = sorted(h for h in all_headers 
                                if h not in ('title', 'matched title', 'skipped', 'error', 'Link?'))
-        if custom_columns:
-            headers.extend(custom_columns)
+        
+        if 'Link?' in all_headers:
+            headers.insert(1, 'Link?')
         if 'matched title' in all_headers:
             headers.append('matched title')
         if 'skipped' in all_headers:
             headers.append('skipped')
         if 'error' in all_headers:
             headers.append('error')
-        if 'Link?' in all_headers:
-            headers.append('Link?')
+        if custom_columns:
+            headers.extend(custom_columns)
 
         table = QTableWidget()
         table.setRowCount(len(results))
         table.setColumnCount(len(headers))
         table.setHorizontalHeaderLabels(headers)
+        table.setColumnHidden(0, True) # Hide idx column
+        table.setSortingEnabled(True)
 
         # Populate Table
         for row, result in enumerate(results):
             for col, header in enumerate(headers):
-                if header == "Link?" and result.get(header, False):
+                if header == "idx":
+                    item = QTableWidgetItem(str(row))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    table.setItem(row, col, item)
+                elif header == "Link?" and result.get(header, False):
                     item = QTableWidgetItem("")
                     item.setFlags((item.flags() & ~Qt.ItemIsEditable) | Qt.ItemIsUserCheckable)
                     item.setCheckState(Qt.Checked)
                     item.setToolTip('Checked Box = Link, Unchecked Box = Skip')
                     table.setItem(row, col, item)
-                else:
+                else: # All other headers
                     value = result.get(header, "")
                     item = QTableWidgetItem(str(value))
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -1101,13 +1110,27 @@ class SyncCompletionDialog(QDialog):
         if resultsRowHeight:
             if resultsRowHeight == 0:
                 table.resizeRowsToContents()
-                # Enforce a maximum height of 50 for each row
+                # Enforce a maximum height of 50 for each row, default = 30
                 for row in range(len(results)):
                     if table.rowHeight(row) > 50: 
                         table.setRowHeight(row, 50)
             else:
                 for row in range(len(results)):
                     table.setRowHeight(row, resultsRowHeight)
+
+        max_lines = 1
+        for col, header in enumerate(headers):
+            words, line, lines, col_len_limit = header.split(), "", [], max(table.columnWidth(col) // 7, 10)
+            for word in words:
+                line = f"{line} {word}".strip()
+                if len(line) > col_len_limit:
+                    lines.append(line.rsplit(' ', 1)[0])
+                    line = word if ' ' in line else ''
+            lines.append(line)
+            max_lines = max(len(lines), max_lines)
+            wrapped = '\n'.join(lines)
+            table.setHorizontalHeaderItem(col, QTableWidgetItem(wrapped))
+        table.horizontalHeader().setFixedHeight(20 * max_lines) # Default = 20
 
         return table
 
@@ -1178,12 +1201,9 @@ class LinkDialog(QDialog):
 
         sorted_items = sorted(items, key=sort_key)
         self.items = sorted_items  # Update items list with sorted version
-        
+
         # Create a light blue color for highlighting
         highlight_color = QColor(173, 216, 230)  # Light blue RGB values
-
-        # Create checkmark icon for reading/read status
-        checkmark_icon = QIcon.ic('ok.png')
 
         # Get list of library item IDs from me_data
         reading_ids = set()
@@ -1215,7 +1235,7 @@ class LinkDialog(QDialog):
             status_item = QTableWidgetItem()
             status_item.setFlags(status_item.flags() & ~Qt.ItemIsEditable)
             if item.get('id') in reading_ids:
-                status_item.setIcon(checkmark_icon)
+                status_item.setIcon(QIcon.ic('ok.png'))
             self.table.setItem(row, 2, status_item)
 
         self.table.resizeColumnsToContents()
