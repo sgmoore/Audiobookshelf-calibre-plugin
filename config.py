@@ -962,14 +962,18 @@ class ABSAccountPopup(QDialog):
         self.validate_credentials_button = QPushButton('Validate Account', self)
         self.validate_credentials_button.clicked.connect(self.validate_audiobookshelf_credentials)
         layout.addWidget(self.validate_credentials_button)
+        self.isValidated = False
 
-        self.login_button = QPushButton('Save Account', self)
+        self.login_button = QPushButton('Validate + Save Account', self)
         self.login_button.clicked.connect(self.save_audiobookshelf_account_settings)
         layout.addWidget(self.login_button)
 
     def validate_audiobookshelf_credentials(self):
         from urllib.request import Request, urlopen
         from urllib.error import URLError, HTTPError
+
+        self.currURL = self.url_input.text()
+        self.currKey = self.key_input.toPlainText()
 
         def api_request(url, api_key, post=False):
             req = Request(url, headers={'Authorization': f'Bearer {api_key}'})
@@ -988,36 +992,30 @@ class ABSAccountPopup(QDialog):
                     error_json = json.loads(error_resp.decode('utf-8'))
                 except Exception:
                     error_json = None
-                print("HTTPError: API request failed with code", code)
                 return (code, error_json)
             except URLError as e:
-                print("URLError: API request failed:", e)
                 return None, None
 
-        resp_code, res= api_request(f'{self.url_input.text()}/ping', self.key_input.toPlainText())
+        resp_code, res= api_request(f'{self.currURL}/ping', self.currKey)
         if resp_code != 200 or res['success'] != True:
             error_dialog(
                 self.parent().action.gui,
                 'Server Not Accessible',
                 'Server URL not accessible, please check that the URL includes http(s):// and port and is reachable in your browser.',
-                det_msg=res,
                 show=True,
-                show_copy_button=True
+                show_copy_button=False
             )
             return False
 
-        resp_code, res= api_request(f'{self.url_input.text()}/api/authorize', self.key_input.toPlainText(), True)
+        resp_code, res= api_request(f'{self.currURL}/api/authorize', self.currKey, True)
         if resp_code != 200:
             error_dialog(
                 self.parent().action.gui,
                 'API Key Not Valid',
                 'Server is Reachable, but the provided API Key was rejected. Check again and ensure there are no spaces and the word "Bearer" is not included.',
-                det_msg=res,
                 show=True,
-                show_copy_button=True
-            ) #  user username type isActive permissions
-            print(resp_code)
-            print(res)
+                show_copy_button=False
+            )
             return False
         else:
             info_dialog(
@@ -1035,18 +1033,21 @@ class ABSAccountPopup(QDialog):
                 show=True,
                 show_copy_button=True
             )
+            self.isValidated = True
             return True
 
     def save_audiobookshelf_account_settings(self):
-        if not self.validate_audiobookshelf_credentials(self):
-            return
-        CONFIG['abs_url'] = self.url_input.text()
-        CONFIG['abs_key'] = self.key_input.toPlainText()
+        if not (self.isValidated and self.currURL == self.url_input.text() and self.currKey == self.key_input.toPlainText()):
+            if not self.validate_audiobookshelf_credentials():
+                return
+
+        CONFIG['abs_url'] = self.currURL
+        CONFIG['abs_key'] = self.currKey
 
         try:
             from calibre.ebooks.metadata.sources.prefs import msprefs
             id_link_rules = msprefs['id_link_rules']
-            id_link_rules['audiobookshelf_id'] = [['Audiobookshelf', f'{self.url_input.text()}/audiobookshelf/item/{{id}}']]
+            id_link_rules['audiobookshelf_id'] = [['Audiobookshelf', f'{self.currURL}/audiobookshelf/item/{{id}}']]
             msprefs['id_link_rules'] = id_link_rules
         except ImportError:
             print('Could not add identifer link rule for Audiobookshelf')        
