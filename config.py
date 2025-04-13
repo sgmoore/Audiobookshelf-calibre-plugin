@@ -346,7 +346,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'data_location': [],
         'transform': (lambda value: (
             f"{int(progress_time_remaining // 3600)}:{int((progress_time_remaining % 3600) // 60):02d}"
-            if (progress_time_remaining := value["duration"] - value['currentTime']) is not None
+            if value.get('duration') and (progress_time_remaining := value["duration"] - value['currentTime']) is not None
             else '-'
         )),
     },

@@ -375,7 +375,7 @@ class AudiobookshelfAction(InterfaceAction):
             for prog in me_data.get('mediaProgress', []):
                 media_progress_dict[prog.get('libraryItemId')] = {**prog, 'bookmarks': []}
             for bookmark in me_data.get('bookmarks'):
-                media_progress_dict[bookmark["libraryItemId"]]['bookmarks'].append({
+                media_progress_dict.setdefault(bookmark.get('libraryItemId'), {'bookmarks': []})['bookmarks'].append({
                     "title": bookmark["title"],
                     "time": bookmark["time"],
                 })
@@ -468,7 +468,7 @@ class AudiobookshelfAction(InterfaceAction):
                         value = None
 
                         if api_source == "mediaProgress":
-                            value = self.action.get_nested_value(media_progress_dict.get(abs_id, {}), data_location)
+                            value = self.action.get_nested_value(media_progress_dict.get(abs_id), data_location)
                             if col_meta['column_heading'] == "Audiobook Started" and value is None:
                                 value = True
                         elif api_source == "lib_items":
@@ -533,7 +533,7 @@ class AudiobookshelfAction(InterfaceAction):
                 if progress_dialog:
                     progress_dialog.close()
                 message = (f"Total books processed: {len(res['results'])}\nUpdated: {res['num_success']}\nSkipped: {res['num_skip']}\nFailed: {res['num_fail']}\n\nTime taken: {time.perf_counter() - startTime:.6f} seconds.")
-                res['results'].sort(key=lambda row: (not row.get('error', False), len(row) == 1, row['title'].lower())) # Sort by if error, if changes, then title
+                res['results'].sort(key=lambda row: (not row.get('error', False), -len(row), row['title'].lower())) # Sort by if error, # of changes, then title
                 SyncCompletionDialog(self.gui, "Sync Completed", message, res['results'], type="info").show()
         self.absSyncWorker.finished_signal.connect(on_finished)
         self.absSyncWorker.start()
