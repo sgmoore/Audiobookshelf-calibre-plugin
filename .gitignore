@@ -172,3 +172,6 @@ cython_debug/
 
 # ToDo File
 TODO*
+
+# Python Debug Files
+*_debug.py

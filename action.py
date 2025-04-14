@@ -417,8 +417,9 @@ class AudiobookshelfAction(InterfaceAction):
                         'filtered_date_count': len({s["date"] for s in filtered_sessions}),
                         'filtered_time_listening': (filtered_time_listening := sum(s["timeListening"] for s in filtered_sessions)),
                         'filtered_session_duration': (filtered_session_duration := sum(s["sessionDuration"] for s in filtered_sessions)),
+                        'filtered_progression': (filtered_progression := sum(s["progression"] for s in filtered_sessions)),
                         'filtered_avg_session_duration': filtered_session_duration/len(filtered_sessions) if filtered_sessions else None,
-                        'filtered_avg_speed': filtered_time_listening / filtered_session_duration if filtered_session_duration else None,
+                        'filtered_avg_speed': filtered_progression / filtered_session_duration if filtered_session_duration else None,
                         'filtered_max_speed': max((s["sessionSpeed"] for s in filtered_sessions), default=None),
                     }
 
@@ -791,8 +792,8 @@ class AudiobookshelfAction(InterfaceAction):
             dialog = SyncCompletionDialog(self.gui, "Quick Link Results", message, res['results'], resultsColWidth=0, type="info")
             table = dialog.table_area.findChild(QTableWidget)
             def on_cell_double_clicked(row, col):
-                if col == 3 and res['results'][table.item(row, 0).text()].get('hidden_abs_id'):
-                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{res['results'][table.item(row, 0).text()].get('hidden_abs_id')}")
+                if col == 3 and (id := res['results'][table.item(row, 0).text()].get('hidden_abs_id')):
+                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{id}")
             table.cellDoubleClicked.connect(on_cell_double_clicked)
             dialog.exec_()
             if hasattr(dialog, 'checked_rows'):
