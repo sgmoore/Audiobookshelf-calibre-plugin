@@ -325,6 +325,7 @@ class AudiobookshelfAction(InterfaceAction):
             'Authorization': f'Bearer {api_key}',
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'User-Agent': f'CalibreAudiobookshelfSync/{self.version}',
         }
         req = Request(url, headers=headers)
         if body is not None:
@@ -396,9 +397,9 @@ class AudiobookshelfAction(InterfaceAction):
                     sessions_dict.setdefault(session["libraryItemId"], []).append({
                         "date": session["date"],
                         "timeListening": session["timeListening"],
-                        'progression': (session['currentTime'] - session['startTime']),
+                        'progression': (progression := session['currentTime'] - session['startTime']),
                         "sessionDuration": (sessionDuration := ((session["updatedAt"] - session["startedAt"]) / 1000)),
-                        "cleanSession": 0.8 <= (sessionSpeed := session["timeListening"] / sessionDuration) <= 4,
+                        "cleanSession": 0.8 <= (sessionSpeed := progression / sessionDuration) <= 4,
                         "isComplete": (session["startTime"] == 0 and int(session['currentTime']) == int(session['duration'])),
                         "durationRemaining": durationRemaining if (durationRemaining := int(session['duration'] - session['currentTime'])) > 300 else 0,
                         "sessionSpeed": sessionSpeed,

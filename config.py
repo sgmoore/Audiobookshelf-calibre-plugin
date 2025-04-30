@@ -976,7 +976,12 @@ class ABSAccountPopup(QDialog):
         self.currKey = self.key_input.toPlainText()
 
         def api_request(url, api_key, post=False):
-            req = Request(url, headers={'Authorization': f'Bearer {api_key}'})
+            req = Request(url, headers={
+                'Authorization': f'Bearer {api_key}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'User-Agent': f'CalibreAudiobookshelfSync/',
+            })
             if post:
                 req.method = 'POST'
             try:
