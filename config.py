@@ -605,6 +605,14 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
         'config_label': 'Enable Writeback',
         'config_tool_tip': 'If columns marked with a * are changed in calibre, update ABS.',
     },
+    'checkbox_sync_only_if_more_recent': {
+        'config_label': 'Sync only if data is more recent',
+        'config_tool_tip': "Only updates metadata if the data from audiobookshelf is more recent than the data stored in calibre.",
+    },
+    'checkbox_no_sync_if_finished': {
+        'config_label': 'No Sync if Audiobook is already Finished',
+        'config_tool_tip': "Does not sync the audiobook again if the status in calibre already indicates that it is already finished.",
+    },
 }
 
 CONFIG = JSONConfig(os.path.join('plugins', 'Audiobookshelf Sync.json'))
@@ -717,7 +725,12 @@ class ConfigWidget(QWidget):
                 self.sync_custom_columns[config_name]['current_columns'],
                 CONFIG[config_name]
             )
-        
+
+        # Add Sync checkboxes
+        layout.addWidget(create_separator())
+        layout.addLayout(self.add_checkbox('checkbox_no_sync_if_finished'))
+        layout.addLayout(self.add_checkbox('checkbox_sync_only_if_more_recent'))
+
         # Other Identifiers
         layout.addWidget(create_separator())
         identifer_label = QLabel('Enable additional Identifer Sync and add composite columns to view the identifers below.')
