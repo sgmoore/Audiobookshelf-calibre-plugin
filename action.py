@@ -472,7 +472,13 @@ class AudiobookshelfAction(InterfaceAction):
                         if api_source == "mediaProgress":
                             value = self.action.get_nested_value(media_progress_dict.get(abs_id), data_location)
                             if col_meta['column_heading'] == "Audiobook Started" and value is None:
-                                value = True
+                                if self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_progress_float']['data_location']) > 0:
+                                    value = True
+                            if col_meta['column_heading'].startswith("Audiobook Status"):
+                                if self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_finished']['data_location']):
+                                    value = CONFIG.get('audiobook_status_texts_finished', 'finished')
+                                elif (percent := self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_progress_float']['data_location'])) is not None and percent > 0:
+                                    value = CONFIG.get('audiobook_status_texts_started', 'started')
                         elif api_source == "lib_items":
                             value = self.action.get_nested_value(item_data, data_location)
                         elif api_source == "sessions":

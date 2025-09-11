@@ -391,6 +391,27 @@ CUSTOM_COLUMN_DEFAULTS = {
             else '-'
         )),
     },
+    'column_audiobook_status_text': {
+        'first_in_group': True,
+        'column_heading': _("Audiobook Status"),
+        'datatype': 'text',
+        'description': _("Status of the audiobook (started/finished)"),
+        'default_lookup_name': '#abs_status_text',
+        'config_label': _('Audiobook Status:'),
+        'config_tool_tip': _('A text column to indicate the status of the audiobook (started/finished).'),
+        'api_source': "mediaProgress",
+        'data_location': [],  # No direct key; will be computed if mediaProgress is missing
+    },
+    'column_audiobook_status_enum': {
+        'column_heading': _("Audiobook Status (Fixed Text)"),
+        'datatype': 'enumeration',
+        'description': _("Status of the audiobook (started/finished) as fixed text"),
+        'default_lookup_name': '#abs_status_enum',
+        'config_label': _('Audiobook Status (Fixed Text):'),
+        'config_tool_tip': _('A fixed text column to indicate the status of the audiobook (started/finished).'),
+        'api_source': "mediaProgress",
+        'data_location': [],  # No direct key; will be computed if mediaProgress is missing
+    },
     'column_audiobook_started': {
         'first_in_group': True,
         'column_heading': _("Audiobook Started?"),
@@ -614,6 +635,8 @@ CONFIG.defaults['abs_key'] = ''
 CONFIG.defaults['scheduleSyncHour'] = 4
 CONFIG.defaults['scheduleSyncMinute'] = 0
 CONFIG.defaults['audibleRegion'] = '.com'
+CONFIG.defaults['audiobook_status_texts_started'] = 'started'
+CONFIG.defaults['audiobook_status_texts_finished'] = 'finished'
 # Set defaults for all custom columns
 for config_name in CUSTOM_COLUMN_DEFAULTS:
     CONFIG.defaults[config_name] = ''
@@ -717,7 +740,22 @@ class ConfigWidget(QWidget):
                 self.sync_custom_columns[config_name]['current_columns'],
                 CONFIG[config_name]
             )
-        
+
+        # Add option to change status texts
+        layout.addWidget(create_separator())
+        layout.addWidget(QLabel('Set the status names for "started", "finished" (used for Audiobook Status. Case sensitive):'))
+        status_texts_layout = QHBoxLayout()
+        status_texts_layout.setAlignment(Qt.AlignLeft)
+        self.status_texts_started = QLineEdit(self)
+        self.status_texts_started.setText(CONFIG['audiobook_status_texts_started'])
+        self.status_texts_started.setToolTip('Text to set to when audiobook is started')
+        status_texts_layout.addWidget(self.status_texts_started)
+        self.status_texts_finished = QLineEdit(self)
+        self.status_texts_finished.setText(CONFIG['audiobook_status_texts_finished'])
+        self.status_texts_finished.setToolTip('Text to set to when audiobook is finished')
+        status_texts_layout.addWidget(self.status_texts_finished)
+        layout.addLayout(status_texts_layout)
+
         # Other Identifiers
         layout.addWidget(create_separator())
         identifer_label = QLabel('Enable additional Identifer Sync and add composite columns to view the identifers below.')
@@ -792,6 +830,9 @@ class ConfigWidget(QWidget):
         CONFIG['scheduleSyncHour'] = self.schedule_hour_input.value()
         CONFIG['scheduleSyncMinute'] = self.schedule_minute_input.value()
         CONFIG['audibleRegion'] = self.audible_region_comboBox.currentText()
+
+        CONFIG['audiobook_status_texts_started'] = self.status_texts_started.text()
+        CONFIG['audiobook_status_texts_finished'] = self.status_texts_finished.text()
 
         for config_name, metadata in CUSTOM_COLUMN_DEFAULTS.items():
             CONFIG[config_name] = metadata['comboBox'].get_selected_column()
