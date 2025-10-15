@@ -626,6 +626,14 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
         'config_label': 'Enable Writeback',
         'config_tool_tip': 'If columns marked with a * are changed in calibre, update ABS.',
     },
+    'checkbox_sync_only_if_more_recent': {
+        'config_label': 'Sync only if data is more recent',
+        'config_tool_tip': "Only updates metadata if the data from audiobookshelf is more recent than the data stored in calibre.",
+    },
+    'checkbox_no_sync_if_finished': {
+        'config_label': 'No Sync if Audiobook is already Finished',
+        'config_tool_tip': "Does not sync the audiobook again if the status in calibre already indicates that it is already finished.",
+    },
 }
 
 CONFIG = JSONConfig(os.path.join('plugins', 'Audiobookshelf Sync.json'))
@@ -741,6 +749,11 @@ class ConfigWidget(QWidget):
                 CONFIG[config_name]
             )
 
+        # Add Sync checkboxes
+        layout.addWidget(create_separator())
+        layout.addLayout(self.add_checkbox('checkbox_no_sync_if_finished'))
+        layout.addLayout(self.add_checkbox('checkbox_sync_only_if_more_recent'))
+        
         # Add option to change status texts
         layout.addWidget(create_separator())
         layout.addWidget(QLabel('Set the status names for "started", "finished" (used for Audiobook Status. Case sensitive):'))

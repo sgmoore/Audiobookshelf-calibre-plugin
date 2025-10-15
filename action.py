@@ -460,6 +460,14 @@ class AudiobookshelfAction(InterfaceAction):
                     result = {'title': metadata.get('title', f'Book {book_id}')}
                     keys_values_to_update = {}
 
+                    # Check if book is finished and should not be synced again
+                    if CONFIG.get('checkbox_no_sync_if_finished', False):
+                        status_key = CONFIG['column_audiobook_status_text'] or CONFIG['column_audiobook_status_enum']
+                        book_finished = metadata.get(CONFIG['column_audiobook_finished'], False) or metadata.get(status_key, "") == CONFIG['audiobook_status_texts_finished']
+                        if book_finished:
+                            num_skip += 1
+                            continue
+
                     # Update identifiers if Audible ASIN sync is enabled
                     if CONFIG.get('checkbox_enable_Audible_ASIN_sync', False):
                         current_Audible_ASIN = identifiers.get('audible')
@@ -523,6 +531,31 @@ class AudiobookshelfAction(InterfaceAction):
                                     result[col_meta['column_heading']] = f"{old_value if old_value is not None else '-'} >> {value}"
 
                     if keys_values_to_update:
+                        # Check if book is finished and should not be synced again
+                        if CONFIG.get('checkbox_sync_only_if_more_recent', False):
+                            lastread = CONFIG['column_audiobook_lastread']
+                            current_lastread = metadata.get(lastread)
+                            new_lastread = keys_values_to_update.get(lastread)
+                            if current_lastread is not None and new_lastread is not None:
+                                if current_lastread.timestamp() >= new_lastread.timestamp():
+                                    results.append({'title': metadata.get('title', f'Book {book_id}'), 'skipped': 'Data in calibre is more recent'})
+                                    num_skip += 1
+                                    continue
+                            # Fallback if no 'column_audiobook_lastread' is set
+                            elif new_lastread is None:
+                                progress_key = CONFIG['column_audiobook_progress_float'] or CONFIG['column_audiobook_progress_int']
+                                current_progress = metadata.get(progress_key)
+                                new_progress = keys_values_to_update.get(progress_key)
+                                if current_progress is not None and new_progress is not None:
+                                    if current_progress > new_progress:
+                                        results.append({'title': metadata.get('title', f'Book {book_id}'), 'skipped': 'Progress is lower than in calibre'})
+                                        num_skip += 1
+                                        continue
+                                elif current_progress is not None and new_progress is None:
+                                    results.append({'title': metadata.get('title', f'Book {book_id}'), 'skipped': 'No Progress found'})
+                                    num_skip += 1
+                                    continue
+
                         status, detail = self.action.update_metadata(book_uuid, keys_values_to_update)
                         if status:
                             num_success += 1
