@@ -99,14 +99,14 @@ class AudiobookshelfAction(InterfaceAction):
             triggered=self.quick_link_books,
             description='Search Audible for Book and check for matches in Audiobookshelf by ASIN'
         )
-        if DEBUG:
+        if DEBUG or CONFIG.get('checkbox_unlink_button', False):
             self.create_menu_action(
                 menu,
                 'Remove ABS Link',
                 'Remove ABS Link',
                 icon='list_remove.png',
                 triggered=self.unlink_audiobookshelf_book,
-                description='DEBUG ONLY: Remove ABS ID from calibre Book(s)'
+                description='Removes ABS ID and all ABS synced metadata from selected calibre book(s)'
             )
         menu.addSeparator()
         self.create_menu_action(
@@ -217,9 +217,8 @@ class AudiobookshelfAction(InterfaceAction):
             dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, resultsColWidth=0, type="info")
             table = dialog.table_area.findChild(QTableWidget)
             def on_cell_double_clicked(row, col):
-                print(table.get_column_index("title"))
                 if col == 1:
-                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[table.item(row, 0).text()].get('hidden_id')}")
+                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[int(table.item(row, 0).text())].get('hidden_id')}")
             table.cellDoubleClicked.connect(on_cell_double_clicked)
             dialog.show()
 
@@ -371,6 +370,15 @@ class AudiobookshelfAction(InterfaceAction):
             if item_id:
                 items_dict[item_id] = item
 
+        if 'itemDetail' in api_sources:
+            chapters_dict = {}
+            linked_abs_ids = list({db.get_metadata(book_id).get('identifiers', {}).get('audiobookshelf_id') for book_id in all_book_ids})
+            book_details = self.api_request(f"{server_url}/api/items/batch/get", api_key, ('POST', {"libraryItemIds": [linked_abs_ids]}))['libraryItems']
+            for book in book_details:
+                book_chapters = book['media']['chapters']
+                book_chapters.sort(key=lambda item: item['id'])
+                chapters_dict[book['id']] = '\n'.join([f"{item['id'] + 1}: {item['title']} ({int((item['end']-item['start'])/60)} mins)" for item in book_chapters])
+
         # Get me data
         if 'mediaProgress' in api_sources:
             me_url = f"{server_url}/api/me"
@@ -500,6 +508,8 @@ class AudiobookshelfAction(InterfaceAction):
                             value = self.action.get_nested_value(sessions_dict.get(abs_id, {}), data_location)
                         elif api_source == "collections":
                             value = collections_dict.get(abs_id, [])
+                        elif api_source == "itemDetail":
+                            value = chapters_dict.get(abs_id, [])
                         else:
                             continue
 
@@ -531,7 +541,7 @@ class AudiobookshelfAction(InterfaceAction):
                                     result[col_meta['column_heading']] = f"{old_value if old_value is not None else '-'} >> {value}"
 
                     if keys_values_to_update:
-                        # Check if book is finished and should not be synced again
+                        # Check if changes are more recent before updating
                         if CONFIG.get('checkbox_sync_only_if_more_recent', False):
                             lastread = CONFIG['column_audiobook_lastread']
                             current_lastread = metadata.get(lastread)
@@ -780,6 +790,7 @@ class AudiobookshelfAction(InterfaceAction):
                                             'Link?': True,
                                             'hidden_book_id': book_id,
                                             'hidden_abs_id': abs_id_list[0]['abs_id'],
+                                            'hidden_matched_asin': matched_asin,
                                             'hidden_metadata': metadata,
                                             **({'Audible Search Results': '\n'.join(item['title'] for item in response['products'])} if DEBUG else {})
                                         })
@@ -839,8 +850,10 @@ class AudiobookshelfAction(InterfaceAction):
             dialog = SyncCompletionDialog(self.gui, "Quick Link Results", message, res['results'], resultsColWidth=0, type="info")
             table = dialog.table_area.findChild(QTableWidget)
             def on_cell_double_clicked(row, col):
-                if col == 3 and (id := res['results'][table.item(row, 0).text()].get('hidden_abs_id')):
+                if col == 3 and (id := res['results'][int(table.item(row, 0).text())].get('hidden_abs_id')):
                     open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{id}")
+                elif col == 4 and (asin := res['results'][int(table.item(row, 0).text())].get('hidden_matched_asin')): # Debug Only Open in Audible
+                    open_url(f"https://www.audible{CONFIG['audibleRegion']}/pd/{asin}")
             table.cellDoubleClicked.connect(on_cell_double_clicked)
             dialog.exec_()
             if hasattr(dialog, 'checked_rows'):

@@ -21,6 +21,7 @@ from PyQt5.Qt import (
     QSpinBox,
     QFrame,
     QDialog,
+    QSizePolicy,
     Qt,
 )
 from PyQt5.QtGui import QPixmap
@@ -237,7 +238,7 @@ CUSTOM_COLUMN_DEFAULTS = {
         'data_location': ['numFiles'],
     },
     'column_audiobook_numchapters': {
-        'column_heading': _("Audiobook Chapters"),
+        'column_heading': _("Audiobook Chapter Count"),
         'datatype': 'int',
         'description': _("Number of chapters in the audiobook"),
         'default_lookup_name': '#abs_numchapters',
@@ -245,6 +246,16 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('An "Integer" column to store the number of chapters in the audiobook.'),
         'api_source': "lib_items",
         'data_location': ['media', 'numChapters'],
+    },
+    'column_audiobook_chapters': {
+        'column_heading': _("Audiobook Chapters"),
+        'datatype': 'comments',
+        'description': _("List of Chapters with Timestamps."),
+        'default_lookup_name': '#abs_chapters',
+        'config_label': _('Chapters:'),
+        'config_tool_tip': _('A "Long text" column to store the chapters and timestamps from the audiobook metadata.'),
+        'api_source': "itemDetail",
+        #'data_location': ['media', 'tags']
     },
     'column_audiobookshelf_library': {
         'first_in_group': 'Audiobookshelf',
@@ -391,27 +402,6 @@ CUSTOM_COLUMN_DEFAULTS = {
             else '-'
         )),
     },
-    'column_audiobook_status_text': {
-        'first_in_group': True,
-        'column_heading': _("Audiobook Status"),
-        'datatype': 'text',
-        'description': _("Status of the audiobook (started/finished)"),
-        'default_lookup_name': '#abs_status_text',
-        'config_label': _('Audiobook Status:'),
-        'config_tool_tip': _('A text column to indicate the status of the audiobook (started/finished).'),
-        'api_source': "mediaProgress",
-        'data_location': [],  # No direct key; will be computed if mediaProgress is missing
-    },
-    'column_audiobook_status_enum': {
-        'column_heading': _("Audiobook Status (Fixed Text)"),
-        'datatype': 'enumeration',
-        'description': _("Status of the audiobook (started/finished) as fixed text"),
-        'default_lookup_name': '#abs_status_enum',
-        'config_label': _('Audiobook Status (Fixed Text):'),
-        'config_tool_tip': _('A fixed text column to indicate the status of the audiobook (started/finished).'),
-        'api_source': "mediaProgress",
-        'data_location': [],  # No direct key; will be computed if mediaProgress is missing
-    },
     'column_audiobook_started': {
         'first_in_group': True,
         'column_heading': _("Audiobook Started?"),
@@ -434,6 +424,27 @@ CUSTOM_COLUMN_DEFAULTS = {
         'api_source': "mediaProgress",
         'data_location': ['startedAt'],
         'transform': lambda value: datetime.fromtimestamp(int(value/1000)).replace(tzinfo=local_tz),
+    },
+    'column_audiobook_status_text': {
+        'column_heading': _("Audiobook Status"),
+        'datatype': 'text',
+        'description': _("Status of the audiobook (started/finished)"),
+        'default_lookup_name': '#abs_status_text',
+        'config_label': _('Audiobook Status:'),
+        'config_tool_tip': _('A text column to indicate the status of the audiobook (started/finished).'),
+        'api_source': "mediaProgress",
+        'data_location': [],  # No direct key; will be computed if mediaProgress is missing
+    },
+    'column_audiobook_status_enum': {
+        'column_heading': _("Audiobook Status (Fixed Text)"),
+        'datatype': 'enumeration',
+        'additional_params': {'enum_values': ['Started','Finished']},
+        'description': _("Status of the audiobook (started/finished) as fixed text"),
+        'default_lookup_name': '#abs_status_enum',
+        'config_label': _('Audiobook Status (Fixed Text):'),
+        'config_tool_tip': _('A fixed text column to indicate the status of the audiobook (started/finished).'),
+        'api_source': "mediaProgress",
+        'data_location': [],  # No direct key; will be computed if mediaProgress is missing
     },
     'column_audiobook_finished': {
         'first_in_group': True,
@@ -627,12 +638,16 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
         'config_tool_tip': 'If columns marked with a * are changed in calibre, update ABS.',
     },
     'checkbox_sync_only_if_more_recent': {
-        'config_label': 'Sync only if data is more recent',
-        'config_tool_tip': "Only updates metadata if the data from audiobookshelf is more recent than the data stored in calibre.",
+        'config_label': 'Only Sync if Audiobookshelf Has New Data',
+        'config_tool_tip': "Only updates metadata if the data from Audiobookshelf is more recent than the data stored in calibre.",
     },
     'checkbox_no_sync_if_finished': {
-        'config_label': 'No Sync if Audiobook is already Finished',
+        'config_label': 'Skip Sync if Audiobook is Already Finished',
         'config_tool_tip': "Does not sync the audiobook again if the status in calibre already indicates that it is already finished.",
+    },
+    'checkbox_unlink_button': {
+        'config_label': 'Show Unlink Button',
+        'config_tool_tip': 'Adds "Remove ABS Link" button to toolbar that allows for easy un-linking of books.',
     },
 }
 
@@ -643,8 +658,8 @@ CONFIG.defaults['abs_key'] = ''
 CONFIG.defaults['scheduleSyncHour'] = 4
 CONFIG.defaults['scheduleSyncMinute'] = 0
 CONFIG.defaults['audibleRegion'] = '.com'
-CONFIG.defaults['audiobook_status_texts_started'] = 'started'
-CONFIG.defaults['audiobook_status_texts_finished'] = 'finished'
+CONFIG.defaults['audiobook_status_texts_started'] = 'Started'
+CONFIG.defaults['audiobook_status_texts_finished'] = 'Finished'
 # Set defaults for all custom columns
 for config_name in CUSTOM_COLUMN_DEFAULTS:
     CONFIG.defaults[config_name] = ''
@@ -732,7 +747,8 @@ class ConfigWidget(QWidget):
         columns_group_box_layout = QHBoxLayout()
         columns_group_box.setLayout(columns_group_box_layout)
         columns_group_box_layout2 = QFormLayout()
-        columns_group_box_layout.addLayout(columns_group_box_layout2)
+        columns_group_box_layout2.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        columns_group_box_layout.addLayout(columns_group_box_layout2, 1)
         columns_group_box_layout.addStretch()
         # Populate custom column dropdowns
         for config_name, metadata in CUSTOM_COLUMN_DEFAULTS.items():
@@ -749,14 +765,21 @@ class ConfigWidget(QWidget):
                 CONFIG[config_name]
             )
 
-        # Add Sync checkboxes
+        # Additional Sync Options
         layout.addWidget(create_separator())
-        layout.addLayout(self.add_checkbox('checkbox_no_sync_if_finished'))
-        layout.addLayout(self.add_checkbox('checkbox_sync_only_if_more_recent'))
+        additional_options_label = QLabel('Additional Sync Behavior Settings. Hover for more information.')
+        layout.addWidget(additional_options_label)
+        additional_options_r1 = QHBoxLayout()
+        additional_options_r1.addLayout(self.add_checkbox('checkbox_no_sync_if_finished'))
+        additional_options_r1.addLayout(self.add_checkbox('checkbox_sync_only_if_more_recent'))
+        layout.addLayout(additional_options_r1)
+        additional_options_r2 = QHBoxLayout()
+        additional_options_r2.addLayout(self.add_checkbox('checkbox_unlink_button'))
+        layout.addLayout(additional_options_r2)
         
         # Add option to change status texts
         layout.addWidget(create_separator())
-        layout.addWidget(QLabel('Set the status names for "started", "finished" (used for Audiobook Status. Case sensitive):'))
+        layout.addWidget(QLabel('Set the status names for "Started", "Finished" (used for Audiobook Status. Case sensitive):'))
         status_texts_layout = QHBoxLayout()
         status_texts_layout.setAlignment(Qt.AlignLeft)
         self.status_texts_started = QLineEdit(self)
@@ -769,29 +792,42 @@ class ConfigWidget(QWidget):
         status_texts_layout.addWidget(self.status_texts_finished)
         layout.addLayout(status_texts_layout)
 
-        # Other Identifiers
+        # Audible ASIN Identifier
         layout.addWidget(create_separator())
-        identifer_label = QLabel('Enable additional Identifer Sync and add composite columns to view the identifers below.')
+        identifer_label = QLabel('Audible & QuickLink Settings. Optionally add composite columns to internal Identifiers.')
         layout.addWidget(identifer_label)
-        audible_config_layout = QHBoxLayout()
-        audible_config_layout.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
-        audible_config_layout.addLayout(self.add_checkbox('checkbox_cache_QuickLink_history'))
-        audible_config_layout.addWidget(QLabel('Audible Region: '))
+        audible_config_layout_r1 = QHBoxLayout()
+        audible_config_layout_r1.addLayout(self.add_checkbox('checkbox_enable_Audible_ASIN_sync'))
+        audible_config_layout_r1.addStretch()
+        audible_config_layout_r1.addWidget(QLabel('Audible Region: '))
         self.audible_region_comboBox = QComboBox()
         self.audible_region_comboBox.addItems([".com", ".ca", ".co.uk", ".com.au", ".fr", ".de", ".co.jp", ".it", ".in", ".es", ".com.br"])
         self.audible_region_comboBox.setCurrentText(CONFIG['audibleRegion'])
         self.audible_region_comboBox.setMinimumWidth(75)
         self.audible_region_comboBox.wheelEvent = lambda event: event.ignore()
-        audible_config_layout.addWidget(self.audible_region_comboBox)
-        layout.addLayout(audible_config_layout)
-        identifier_column_layout = QHBoxLayout()
+        audible_config_layout_r1.addWidget(self.audible_region_comboBox)
+        audible_config_layout_r1.addStretch()
         abs_id_button = QPushButton('Audiobookshelf ID', self)
+        abs_id_button.setMinimumWidth(150)
         abs_id_button.clicked.connect(lambda: self.add_composite_column('#abs_id', 'Audiobookshelf ID', 'audiobookshelf_id'))
-        identifier_column_layout.addWidget(abs_id_button)
+        audible_config_layout_r1.addWidget(abs_id_button)
+        layout.addLayout(audible_config_layout_r1)
+        audible_config_layout_r2 = QHBoxLayout()
+        audible_config_layout_r2.addLayout(self.add_checkbox('checkbox_cache_QuickLink_history'))
+        audible_config_layout_r2.addStretch()
+        clear_QLcache_button = QPushButton('Clear QuickLink Cache', self)
+        clear_QLcache_button.setMinimumWidth(150)
+        clear_QLcache_button.clicked.connect(
+            lambda: (JSONConfig('plugins/Audiobookshelf QL Cache.json').__setitem__('cache', []),
+                        info_dialog(self.action.gui, 'Cache Successfully Cleared', 'Cache Successfully Cleared', show=True, show_copy_button=False))
+            )
+        audible_config_layout_r2.addWidget(clear_QLcache_button)
+        audible_config_layout_r2.addStretch()
         asin_button = QPushButton('Audible ASIN', self)
+        asin_button.setMinimumWidth(150)
         asin_button.clicked.connect(lambda: self.add_composite_column('#abs_asin', 'Audible ASIN', 'audible'))
-        identifier_column_layout.addWidget(asin_button)
-        layout.addLayout(identifier_column_layout)
+        audible_config_layout_r2.addWidget(asin_button)
+        layout.addLayout(audible_config_layout_r2)
 
         # Writeback
         layout.addWidget(create_separator())
@@ -836,6 +872,7 @@ class ConfigWidget(QWidget):
         needRestart = (self.must_restart or
             CONFIG['checkbox_enable_scheduled_sync'] != (CHECKBOXES['checkbox_enable_scheduled_sync']['checkbox'].checkState() == Qt.Checked) or
             CONFIG['checkbox_enable_writeback'] != (CHECKBOXES['checkbox_enable_writeback']['checkbox'].checkState() == Qt.Checked) or
+            CONFIG['checkbox_unlink_button'] != (CHECKBOXES['checkbox_unlink_button']['checkbox'].checkState() == Qt.Checked) or
             CONFIG['scheduleSyncHour'] != self.schedule_hour_input.value() or
             CONFIG['scheduleSyncMinute'] != self.schedule_minute_input.value()
         )
@@ -891,6 +928,7 @@ class ConfigWidget(QWidget):
         create_column_callback = partial(self.create_custom_column, custom_col_name) if SUPPORTS_CREATE_CUSTOM_COLUMN else None
         avail_columns = self.sync_custom_columns[custom_col_name]['current_columns']
         custom_column_combo = CustomColumnComboBox(self, avail_columns, create_column_callback=create_column_callback)
+        custom_column_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         custom_column_combo.setMinimumWidth(min_width)
         current_Location_label.setBuddy(custom_column_combo)
         form_layout.addRow(current_Location_label, custom_column_combo)
@@ -987,9 +1025,8 @@ class ABSAccountPopup(QDialog):
         self.setLayout(layout)
 
         self.note_label = QLabel(
-            "Enter your Audiobookshelf server URL, if it's the same device as "
-            'calibre you can leave the default filled in.<br>'
-            'Enter your <a href="https://api.audiobookshelf.org/#introduction:~:text=You%20can%20find%20your%20API%20token%20by%20logging%20into%20the%20Audiobookshelf%20web%20app%20as%20an%20admin%2C%20go%20to%20the%20config%20%E2%86%92%20users%20page%2C%20and%20click%20on%20your%20account.">Audiobookshelf API Key</a> and click Save Account.',
+            "Enter your Audiobookshelf server URL, if it's the same device as calibre you can leave the default filled in.<br>"
+            'Enter your <a href="https://www.audiobookshelf.org/guides/api-keys/">Audiobookshelf API Key</a> and click Save Account.',
             self
         )
         self.note_label.setWordWrap(True)
