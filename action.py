@@ -200,21 +200,28 @@ class AudiobookshelfAction(InterfaceAction):
                         'author': metadata.get('authorName', ''),
                         'library': item.get('libraryName', ''),
                     })
+        # Check if there are unlinked items   
+        if not unlinked_items:
+            # Show a dialog indicating there are no unlinked audiobooks
+            message = "There are no Unlinked Audiobooks in your Library."
+            dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, [], resultsColWidth=0, type="info")
+            dialog.show()
+            
+        else:
+            # Sort by title
+            unlinked_items.sort(key=lambda x: x['title'].lower())
 
-        # Sort by title
-        unlinked_items.sort(key=lambda x: x['title'].lower())
-
-        # Show results
-        message = (f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library.\n\n"
-        "Double Click the title to open book in Audiobookshelf.")
-        dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, resultsColWidth=0, type="info")
-        table = dialog.table_area.findChild(QTableWidget)
-        def on_cell_double_clicked(row, col):
-            print(table.get_column_index("title"))
-            if col == 1:
-                open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[table.item(row, 0).text()].get('hidden_id')}")
-        table.cellDoubleClicked.connect(on_cell_double_clicked)
-        dialog.show()
+            # Show results
+            message = (f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library.\n\n"
+            "Double Click the title to open book in Audiobookshelf.")
+            dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, resultsColWidth=0, type="info")
+            table = dialog.table_area.findChild(QTableWidget)
+            def on_cell_double_clicked(row, col):
+                print(table.get_column_index("title"))
+                if col == 1:
+                    open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[table.item(row, 0).text()].get('hidden_id')}")
+            table.cellDoubleClicked.connect(on_cell_double_clicked)
+            dialog.show()
 
     def scheduled_sync(self):
         def scheduledTask():
@@ -480,7 +487,13 @@ class AudiobookshelfAction(InterfaceAction):
                         if api_source == "mediaProgress":
                             value = self.action.get_nested_value(media_progress_dict.get(abs_id), data_location)
                             if col_meta['column_heading'] == "Audiobook Started" and value is None:
-                                value = True
+                                if self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_progress_float']['data_location']) > 0:
+                                    value = True
+                            if col_meta['column_heading'].startswith("Audiobook Status"):
+                                if self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_finished']['data_location']):
+                                    value = CONFIG.get('audiobook_status_texts_finished', 'finished')
+                                elif (percent := self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_progress_float']['data_location'])) is not None and percent > 0:
+                                    value = CONFIG.get('audiobook_status_texts_started', 'started')
                         elif api_source == "lib_items":
                             value = self.action.get_nested_value(item_data, data_location)
                         elif api_source == "sessions":
