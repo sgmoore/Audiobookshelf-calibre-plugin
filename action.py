@@ -423,13 +423,22 @@ class AudiobookshelfAction(InterfaceAction):
 
         if 'itemDetail' in api_sources:
             chapters_dict = {}
+            supplementary_books_dict = {}
             linked_abs_ids = list({db.get_metadata(book_id).get('identifiers', {}).get('audiobookshelf_id') for book_id in all_book_ids})
             book_details = self.api_request(f"{server_url}/api/items/batch/get", api_key, ('POST', {"libraryItemIds": [linked_abs_ids]}))['libraryItems']
             for book in book_details:
                 book_chapters = book['media']['chapters']
                 book_chapters.sort(key=lambda item: item['id'])
                 chapters_dict[book['id']] = '\n'.join([f"{item['id'] + 1}: {item['title']} ({int((item['end']-item['start'])/60)} mins)" for item in book_chapters])
-
+                supp_files = [
+                    (lf.get('metadata') or {}).get('filename')
+                    for lf in book.get('libraryFiles', [])
+                    if lf.get('isSupplementary') is True and (lf.get('metadata') or {}).get('filename')
+                ]
+                if supp_files:
+                    supplementary_books_dict[book['id']] = f"{len(supp_files)}: {', '.join(supp_files)}"
+        print("asdasdas")
+        print(supplementary_books_dict)
         # Get me data
         if 'mediaProgress' in api_sources:
             me_url = f"{server_url}/api/me"
@@ -560,7 +569,10 @@ class AudiobookshelfAction(InterfaceAction):
                         elif api_source == "collections":
                             value = collections_dict.get(abs_id, [])
                         elif api_source == "itemDetail":
-                            value = chapters_dict.get(abs_id, [])
+                            if col_meta['column_heading'] == "Audiobook Chapters":
+                                value = chapters_dict.get(abs_id, None)
+                            elif col_meta['column_heading'] == "Audiobook Supplementary Files":
+                                value = supplementary_books_dict.get(abs_id, None)
                         else:
                             continue
 

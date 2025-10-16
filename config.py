@@ -237,6 +237,15 @@ CUSTOM_COLUMN_DEFAULTS = {
         'api_source': "lib_items",
         'data_location': ['numFiles'],
     },
+    'column_audiobook_supfiles': {
+        'column_heading': _("Audiobook Supplementary Files"),
+        'datatype': 'text',
+        'description': _("Number and list of supplementary files that accompany the audiobook"),
+        'default_lookup_name': '#abs_supfiles',
+        'config_label': _('Supplementary Files:'),
+        'config_tool_tip': _('An "Text" column to store the number and list of supplementary files that accompany the audiobook.'),
+        'api_source': "itemDetail",
+    },
     'column_audiobook_numchapters': {
         'column_heading': _("Audiobook Chapter Count"),
         'datatype': 'int',
@@ -255,7 +264,6 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_label': _('Chapters:'),
         'config_tool_tip': _('A "Long text" column to store the chapters and timestamps from the audiobook metadata.'),
         'api_source': "itemDetail",
-        #'data_location': ['media', 'tags']
     },
     'column_audiobookshelf_library': {
         'first_in_group': 'Audiobookshelf',
