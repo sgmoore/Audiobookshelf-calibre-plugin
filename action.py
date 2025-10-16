@@ -31,6 +31,7 @@ from PyQt5.QtGui import QPixmap
 from calibre.gui2.actions import InterfaceAction
 from calibre.gui2.dialogs.message_box import MessageBox
 from calibre.db.listeners import EventType
+from calibre.ebooks.metadata.book.base import Metadata
 from calibre.utils.config import JSONConfig
 from calibre.gui2 import (
     error_dialog,
@@ -195,10 +196,12 @@ class AudiobookshelfAction(InterfaceAction):
             if item.get('id') not in linked_abs_ids:
                 metadata = item.get('media', {}).get('metadata', {})
                 unlinked_items.append({
+                        'Add?': True,
                         'hidden_id': item.get('id'),
                         'title': metadata.get('title', ''),
                         'author': metadata.get('authorName', ''),
                         'library': item.get('libraryName', ''),
+                        'hidden_isbn': (metadata.get('isbn') or ''),
                     })
         # Check if there are unlinked items   
         if not unlinked_items:
@@ -206,21 +209,61 @@ class AudiobookshelfAction(InterfaceAction):
             message = "There are no Unlinked Audiobooks in your Library."
             dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, [], resultsColWidth=0, type="info")
             dialog.show()
-            
         else:
             # Sort by title
             unlinked_items.sort(key=lambda x: x['title'].lower())
 
             # Show results
             message = (f"Found {len(unlinked_items)} unlinked books in Audiobookshelf library.\n\n"
-            "Double Click the title to open book in Audiobookshelf.")
+                       "Check the box(es) to add minimal records to calibre (title, authors, ABS ID, and ISBN if available). "
+                       "Double Click the title to open book in Audiobookshelf.")
             dialog = SyncCompletionDialog(self.gui, "Unlinked Audiobookshelf Books", message, unlinked_items, resultsColWidth=0, type="info")
             table = dialog.table_area.findChild(QTableWidget)
             def on_cell_double_clicked(row, col):
-                if col == 1:
+                if col == 2:
                     open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{unlinked_items[int(table.item(row, 0).text())].get('hidden_id')}")
             table.cellDoubleClicked.connect(on_cell_double_clicked)
-            dialog.show()
+
+            if dialog.exec_() and hasattr(dialog, 'checked_rows') and dialog.checked_rows:
+                # Build payload for calibre: list of (Metadata, format_map)
+                payload = []
+                for row_idx in dialog.checked_rows:
+                    rec = unlinked_items[row_idx]
+                    title = rec.get('title') or 'Unknown Title'
+                    authors = rec.get('author')
+                    authors_list = [a.strip() for a in authors.split(',') if a.strip()] if isinstance(authors, str) else ['Unknown']
+
+                    mi = Metadata(title, authors_list)
+                    ids = {'audiobookshelf_id': rec.get('hidden_id')}
+                    if rec.get('hidden_isbn'):
+                        ids['isbn'] = rec['hidden_isbn']
+                    mi.set_identifiers(ids)
+
+                    # empty book record; actual formats/other fields sync later
+                    payload.append((mi, {}))
+
+                added_ids, _skipped = db.add_books(payload)
+                # Refresh the GUI so the new books appear immediately
+                model = self.gui.library_view.model()
+                model.refresh()
+                if added_ids:
+                    self.gui.library_view.select_rows(added_ids) # Select newly added books
+                results = []
+                for i, row_idx in enumerate(dialog.checked_rows):
+                    rec = unlinked_items[row_idx]
+                    results.append({
+                        'title': rec.get('title', ''),
+                        'author': rec.get('author', ''),
+                        'audiobookshelf_id': rec.get('hidden_id', ''),
+                        'isbn': rec.get('hidden_isbn', '') or '-',
+                        'added book id': added_ids[i] if i < len(added_ids) else '-'
+                    })
+                msg = (f"Added {len(added_ids)} book{'s' if len(added_ids)!=1 else ''} to calibre.\n"
+                    "Only title, authors, Audiobookshelf ID, and ISBN (when available) were stored; "
+                    "run your normal Audiobookshelf sync to fetch the rest.")
+                SyncCompletionDialog(self.gui, "Add Completed", msg, results, resultsColWidth=0, type="good").show()
+            else: # Either no selection or dialog canceled; do nothing
+                pass
 
     def scheduled_sync(self):
         def scheduledTask():
@@ -852,16 +895,17 @@ class AudiobookshelfAction(InterfaceAction):
             def on_cell_double_clicked(row, col):
                 if col == 3 and (id := res['results'][int(table.item(row, 0).text())].get('hidden_abs_id')):
                     open_url(f"{CONFIG['abs_url']}/audiobookshelf/item/{id}")
-                elif col == 4 and (asin := res['results'][int(table.item(row, 0).text())].get('hidden_matched_asin')): # Debug Only Open in Audible
+                elif col == 2 and (asin := res['results'][int(table.item(row, 0).text())].get('hidden_matched_asin')): # Debug Only Open in Audible
                     open_url(f"https://www.audible{CONFIG['audibleRegion']}/pd/{asin}")
             table.cellDoubleClicked.connect(on_cell_double_clicked)
-            dialog.exec_()
-            if hasattr(dialog, 'checked_rows'):
+            if dialog.exec_() and hasattr(dialog, 'checked_rows') and dialog.checked_rows:
                 for idx in dialog.checked_rows:
                     identifiers = res['results'][idx]['hidden_metadata'].get('identifiers', {})
                     identifiers['audiobookshelf_id'] = res['results'][idx]['hidden_abs_id']
                     res['results'][idx]['hidden_metadata'].set('identifiers', identifiers)
                     db.set_metadata(res['results'][idx]['hidden_book_id'], res['results'][idx]['hidden_metadata'], set_title=False, set_authors=False)
+            else: # Either no selection or dialog canceled; do nothing
+                pass
 
         self.quickLinkWorker.finished_signal.connect(on_finished)
         self.quickLinkWorker.start()
@@ -1096,17 +1140,25 @@ class SyncCompletionDialog(QDialog):
         ok_button.setIcon(QIcon.ic('ok.png'))
         ok_button.clicked.connect(self.accept)
         ok_button.setDefault(True)
-        if results and table.horizontalHeaderItem(1).text() == 'Link?':
-            ok_button.setText('Link Selected')
-            ok_button.setIcon(QIcon.ic('insert-link.png'))
-            def link_callback():
-                self.checked_rows = []
-                for row in range(table.rowCount()):
-                    item = table.item(row, 1)
-                    if item and item.checkState() == Qt.Checked:
-                        self.checked_rows.append(row)
-                self.accept()
-            ok_button.clicked.connect(link_callback)
+        if results:
+            second_header = table.horizontalHeaderItem(1).text()
+            if second_header in ('Link?', 'Add?'):
+                if second_header == 'Link?':
+                    ok_button.setText('Link Selected')
+                    ok_button.setIcon(QIcon.ic('insert-link.png'))
+                elif second_header == 'Add?':
+                    ok_button.setText('Add Selected')
+                    ok_button.setIcon(QIcon.ic('add_book.png'))
+                def collect_checked_and_accept():
+                    self.checked_rows = []
+                    for row in range(table.rowCount()):
+                        item = table.item(row, 1)  # checkbox column is 1
+                        if item and item.checkState() == Qt.Checked:
+                            orig_idx_item = table.item(row, 0)
+                            if orig_idx_item:
+                                self.checked_rows.append(int(orig_idx_item.text()))
+                    self.accept()
+                ok_button.clicked.connect(collect_checked_and_accept)
         bottomButtonLayout.addWidget(ok_button)
         layout.addLayout(bottomButtonLayout)
     
@@ -1117,10 +1169,12 @@ class SyncCompletionDialog(QDialog):
         # Organize headers: idx very left hidden, checkbox left for QL, title first, messages in middle, custom columns last
         headers = ['idx', 'title']
         custom_columns = sorted(h for h in all_headers 
-                               if h not in ('title', 'matched title', 'skipped', 'error', 'Link?'))
+                               if h not in ('title', 'matched title', 'skipped', 'error', 'Link?', 'Add?'))
         
         if 'Link?' in all_headers:
             headers.insert(1, 'Link?')
+        if 'Add?' in all_headers:
+            headers.insert(1, 'Add?')
         if 'matched title' in all_headers:
             headers.append('matched title')
         if 'skipped' in all_headers:
@@ -1144,11 +1198,16 @@ class SyncCompletionDialog(QDialog):
                     item = QTableWidgetItem(str(row))
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                     table.setItem(row, col, item)
-                elif header == "Link?" and result.get(header, False):
+                elif header in ("Link?", "Add?"):
                     item = QTableWidgetItem("")
                     item.setFlags((item.flags() & ~Qt.ItemIsEditable) | Qt.ItemIsUserCheckable)
-                    item.setCheckState(Qt.Checked)
-                    item.setToolTip('Checked Box = Link, Unchecked Box = Skip')
+                    item.setTextAlignment(Qt.AlignCenter)
+                    if header == "Link?" and result.get(header, False):
+                        item.setCheckState(Qt.Checked)
+                        item.setToolTip('Checked Box = Link, Unchecked Box = Skip')
+                    elif header == "Add?":
+                        item.setCheckState(Qt.Unchecked)
+                        item.setToolTip('Check to add this Audiobookshelf item to calibre')
                     table.setItem(row, col, item)
                 else: # All other headers
                     value = result.get(header, "")
