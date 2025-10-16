@@ -115,6 +115,15 @@ CUSTOM_COLUMN_DEFAULTS = {
         'data_location': ['media', 'metadata', 'authorName'],
         'transform': (lambda value: None if not value else [author.strip() for author in value.split(',')]),
     },
+    'column_audiobook_chapters': {
+        'column_heading': _("Audiobook Chapters"),
+        'datatype': 'comments',
+        'description': _("List of Chapters with Timestamps."),
+        'default_lookup_name': '#abs_chapters',
+        'config_label': _('Chapters:'),
+        'config_tool_tip': _('A "Long text" column to store the chapters and timestamps from the audiobook metadata.'),
+        'api_source': "itemDetail",
+    },
     'column_audiobook_series': {
         'column_heading': _("Audiobook Series"),
         'datatype': 'series',
@@ -255,15 +264,6 @@ CUSTOM_COLUMN_DEFAULTS = {
         'config_tool_tip': _('An "Integer" column to store the number of chapters in the audiobook.'),
         'api_source': "lib_items",
         'data_location': ['media', 'numChapters'],
-    },
-    'column_audiobook_chapters': {
-        'column_heading': _("Audiobook Chapters"),
-        'datatype': 'comments',
-        'description': _("List of Chapters with Timestamps."),
-        'default_lookup_name': '#abs_chapters',
-        'config_label': _('Chapters:'),
-        'config_tool_tip': _('A "Long text" column to store the chapters and timestamps from the audiobook metadata.'),
-        'api_source': "itemDetail",
     },
     'column_audiobookshelf_library': {
         'first_in_group': 'Audiobookshelf',
@@ -443,17 +443,17 @@ CUSTOM_COLUMN_DEFAULTS = {
         'api_source': "mediaProgress",
         'data_location': [],  # No direct key; will be computed if mediaProgress is missing
     },
-    'column_audiobook_status_enum': {
-        'column_heading': _("Audiobook Status (Fixed Text)"),
-        'datatype': 'enumeration',
-        'additional_params': {'enum_values': ['Started','Finished']},
-        'description': _("Status of the audiobook (started/finished) as fixed text"),
-        'default_lookup_name': '#abs_status_enum',
-        'config_label': _('Audiobook Status (Fixed Text):'),
-        'config_tool_tip': _('A fixed text column to indicate the status of the audiobook (started/finished).'),
-        'api_source': "mediaProgress",
-        'data_location': [],  # No direct key; will be computed if mediaProgress is missing
-    },
+    # 'column_audiobook_status_enum': {
+    #     'column_heading': _("Audiobook Status (Fixed Text)"),
+    #     'datatype': 'enumeration',
+    #     'additional_params': {'enum_values': ['Started','Finished']},
+    #     'description': _("Status of the audiobook (started/finished) as fixed text"),
+    #     'default_lookup_name': '#abs_status_enum',
+    #     'config_label': _('Audiobook Status (Fixed Text):'),
+    #     'config_tool_tip': _('A fixed text column to indicate the status of the audiobook (started/finished).'),
+    #     'api_source': "mediaProgress",
+    #     'data_location': [],  # No direct key; will be computed if mediaProgress is missing
+    # },
     'column_audiobook_finished': {
         'first_in_group': True,
         'column_heading': _("Audiobook Finished?"),

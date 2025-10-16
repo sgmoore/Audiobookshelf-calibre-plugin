@@ -32,23 +32,31 @@ the **create new columns** option in the config dropdowns.
 
 1. Right click the Audiobookshelf icon and click configure
 2. Click "Add Audiobookshelf Account" and enter your Audiobookshelf server details:
-   - Server URL (default: http://localhost:13378)
-   - [API Key](https://api.audiobookshelf.org/#introduction:~:text=You%20can%20find%20your%20API%20token%20by%20logging%20into%20the%20Audiobookshelf%20web%20app%20as%20an%20admin%2C%20go%20to%20the%20config%20%E2%86%92%20users%20page%2C%20and%20click%20on%20your%20account.)
+   - Server URL (default: <http://localhost:13378>)
+   - [API Key](https://www.audiobookshelf.org/guides/api-keys/)
    - Optionally set up scheduled sync
 3. Configure columns and other settings
 4. Link Books and Sync
 
+## Usage
+
+### Sync
+
+Click the Audiobookshelf icon in the toolbar or right-click and select "Sync from Audiobookshelf"
+
 ### Available Columns
+
 <details>
-<summary>See Columns</summary>
+<summary><b>See Columns</b></summary>
 
 | Column                       | Description                                                   | Type         |
 |------------------------------|---------------------------------------------------------------|--------------|
 | Audiobook Title*             | Title of the audiobook                                        | Text         |
 | Audiobook Subtitle*          | Subtitle of the audiobook                                     | Text         |
 | Audiobook Description*       | Description of the audiobook                                  | Comments     |
-| Audiobook Author*            | Author name(s)                                                | Text (Names) |
 | Audiobook Narrator*          | Narrator name(s)                                              | Text (Names) |
+| Audiobook Author*            | Author name(s)                                                | Text (Names) |
+| Audiobook Chapters           | List of Chapters with Timestamps                              | Comments     |
 | Audiobook Series*            | Series of the audiobook                                       | Series       |
 | Audiobook Language*          | Language of the audiobook                                     | Text         |
 | Audiobook Genres*            | Genres tagged for the audiobook                               | Text (Tags)  |
@@ -61,7 +69,8 @@ the **create new columns** option in the config dropdowns.
 | Audiobook Size               | Size of the audiobook in MB                                   | Integer      |
 | Audiobook Duration           | Duration of the audiobook formatted as Hrs:Min                | Text         |
 | Audiobook File Count         | Number of files that comprise the audiobook                   | Integer      |
-| Audiobook Chapters           | Number of chapters in the audiobook                           | Integer      |
+| Audiobook Supplementary Files| Number and list of all Supplementary Files with the audiobook | Text         |
+| Audiobook Chapter Count      | Number of chapters in the audiobook                           | Integer      |
 ||||
 | Audiobookshelf Library       | Audiobookshelf Library the audiobook is located in            | Text         |
 | Audiobookshelf Date Added    | The date the audiobook was added to Audiobookshelf            | Date         |
@@ -79,6 +88,7 @@ the **create new columns** option in the config dropdowns.
 ||||
 | Audiobook Started?           | Indicates if the audiobook has been started                   | Yes/No       |
 | Audiobook Begin Date         | The date when the audiobook reading began                     | Date         |
+| Audiobook Status             | Status of the audiobook (started/finished)                    | Text         |
 ||||
 | Audiobook Finished?          | Indicates if the audiobook has been finished                  | Yes/No       |
 | Audiobook Finish Date        | The date when the audiobook was finished                      | Date         |
@@ -97,13 +107,8 @@ the **create new columns** option in the config dropdowns.
 | Audible Average Story Rating | Average Story Rating from Audible with Half Stars             | Rating       |
 | Audible Rating Count         | Number of (star) ratings on Audible (overall ratings)         | Integer      |
 | Audible Review Count         | Number of (text) reviews on Audible                           | Integer      |
+
 </details>
-
-## Usage
-
-### Sync
-
-Click the Audiobookshelf icon in the toolbar or right-click and select "Sync from Audiobookshelf"
 
 #### Scheduled Sync
 
@@ -123,6 +128,7 @@ Quick Linking attempts to link books that haven't been linked by matching up Aud
 It searches Audible for a list of Audible ASINs that may match the title and author of the calibre book, and then
 checks if any Audiobookshelf book matches. You can review these matches prior to linking.  
 By default QuickLink saves a list of calibre books it failed to match (due to no ASIN match) which is more time and API efficient.
+You can disable this. You can clear the cache in settings, or individually remove items from the cache when it pops up during Quick Link.
 
 1. Right-click the Audiobookshelf icon and select "Quick Link Books"
 2. Books will be automatically matched based on Audible ASIN matches
@@ -134,15 +140,33 @@ By default QuickLink saves a list of calibre books it failed to match (due to no
 Builds a table of audiobooks in Audiobookshelf that aren't linked to a book in calibre.  
 Double click the title to open the book in Audiobookshelf.
 
+You can check off books in this list to add blank books in calibre with basic metadata and
+pre-linked to ABS. You might want to do this to make your calibre library complete and have
+a central database of books & audiobooks.
+
+### Additional Settings
+
+Skip syncing books that have already been read in Audiobookshelf.  
+Only update books that have been read since last sync.  
+Add a button to quickly unlink Audiobooks.  
+Set custom strings for started and finished books.
+
 ### Audible ASIN Sync
 
-Sync over the Audible ASIN from Audiobookshelf which adds a link to the Audible page straight from calibre.
+Sync over the Audible ASIN from Audiobookshelf which adds a link to the Audible page straight from calibre.  
+This also lets you sync Audible review/rating data directly into calibre. Make sure you select your region
+to ensure you have accurate results.
+
+### Audiobookshelf Covers
+
+Directly fetch Audiobookshelf covers and easily update calibre with them. Select the books you want to get
+covers for, select the books you want to confirm cover update for, and click "OK" to quickly and easily update calibre covers.
 
 ### Writeback
 
 This plugin allows calibre to push metadata back to Audiobookshelf when changed inside of calibre.  
 Any of the columns with a * are able to be easily sync'd back to Audiobookshelf.  
-This feature is offered with the disclaimer that this will edit your Audiobooshelf database.
+This feature is offered with the disclaimer that this will edit your Audiobookshelf database.
 Make sure you have Audiobookshelf backups enabled in case this borks anything up, which it shouldn't but you never know.  
 The API key provided needs to have permissions to update items for this to work.  
 For Collections/Playlists, this plugin will not create new ones, only update existing.
