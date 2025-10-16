@@ -276,13 +276,13 @@ class AudiobookshelfAction(InterfaceAction):
     def scheduled_sync(self):
         def scheduledTask():
             QTimer.singleShot(24 * 3600 * 1000, scheduledTask)
-            self.sync_from_audiobookshelf(silent = True if not DEBUG else False)
+            self.sync_from_audiobookshelf( silent = (not DEBUG) and (not CONFIG.get('checkbox_scheduled_sync_show_log', False)) )
         def main():
             currentTime = QTime.currentTime()
             targetTime = QTime(CONFIG.get('scheduleSyncHour', 4), CONFIG.get('scheduleSyncMinute', 0))
             timeDiff = currentTime.msecsTo(targetTime)
             if timeDiff < 0:
-                timeDiff += 86400000
+                timeDiff += 86400000 # add 24 hours in milliseconds = 24 * 3600 * 1000
             QTimer.singleShot(timeDiff, scheduledTask)
         main()
 
@@ -437,8 +437,7 @@ class AudiobookshelfAction(InterfaceAction):
                 ]
                 if supp_files:
                     supplementary_books_dict[book['id']] = f"{len(supp_files)}: {', '.join(supp_files)}"
-        print("asdasdas")
-        print(supplementary_books_dict)
+
         # Get me data
         if 'mediaProgress' in api_sources:
             me_url = f"{server_url}/api/me"
@@ -530,7 +529,7 @@ class AudiobookshelfAction(InterfaceAction):
 
                     # Check if book is finished and should not be synced again
                     if CONFIG.get('checkbox_no_sync_if_finished', False):
-                        status_key = CONFIG['column_audiobook_status_text'] or CONFIG['column_audiobook_status_enum']
+                        status_key = CONFIG['column_audiobook_status_text']
                         book_finished = metadata.get(CONFIG['column_audiobook_finished'], False) or metadata.get(status_key, "") == CONFIG['audiobook_status_texts_finished']
                         if book_finished:
                             num_skip += 1
@@ -557,11 +556,11 @@ class AudiobookshelfAction(InterfaceAction):
                             if col_meta['column_heading'] == "Audiobook Started" and value is None:
                                 if self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_progress_float']['data_location']) > 0:
                                     value = True
-                            if col_meta['column_heading'].startswith("Audiobook Status"):
+                            if col_meta['column_heading'] == "Audiobook Status":
                                 if self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_finished']['data_location']):
-                                    value = CONFIG.get('audiobook_status_texts_finished', 'finished')
+                                    value = CONFIG.get('audiobook_status_texts_finished', 'Finished')
                                 elif (percent := self.action.get_nested_value(media_progress_dict.get(abs_id), COLUMNS['column_audiobook_progress_float']['data_location'])) is not None and percent > 0:
-                                    value = CONFIG.get('audiobook_status_texts_started', 'started')
+                                    value = CONFIG.get('audiobook_status_texts_started', 'Started')
                         elif api_source == "lib_items":
                             value = self.action.get_nested_value(item_data, data_location)
                         elif api_source == "sessions":

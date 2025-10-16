@@ -443,17 +443,6 @@ CUSTOM_COLUMN_DEFAULTS = {
         'api_source': "mediaProgress",
         'data_location': [],  # No direct key; will be computed if mediaProgress is missing
     },
-    # 'column_audiobook_status_enum': {
-    #     'column_heading': _("Audiobook Status (Fixed Text)"),
-    #     'datatype': 'enumeration',
-    #     'additional_params': {'enum_values': ['Started','Finished']},
-    #     'description': _("Status of the audiobook (started/finished) as fixed text"),
-    #     'default_lookup_name': '#abs_status_enum',
-    #     'config_label': _('Audiobook Status (Fixed Text):'),
-    #     'config_tool_tip': _('A fixed text column to indicate the status of the audiobook (started/finished).'),
-    #     'api_source': "mediaProgress",
-    #     'data_location': [],  # No direct key; will be computed if mediaProgress is missing
-    # },
     'column_audiobook_finished': {
         'first_in_group': True,
         'column_heading': _("Audiobook Finished?"),
@@ -632,6 +621,10 @@ CHECKBOXES = { # Each entry in the below dict is keyed with config_name
         'config_label': 'Enable Daily Sync',
         'config_tool_tip': 'Enable daily sync of metadata using Audiobookshelf\'s API.',
     },
+    'checkbox_scheduled_sync_show_log': {
+        'config_label': 'Show Daily Sync Log',
+        'config_tool_tip': 'Default false. Show the log popup after the automatic daily sync.',
+    },
     'checkbox_enable_Audible_ASIN_sync': {
         'config_label': 'Enable Audible ASIN Sync',
         'config_tool_tip': 'Enable sync of the Audible identifier and Audible link.',
@@ -728,6 +721,7 @@ class ConfigWidget(QWidget):
         scheduled_sync_layout = QHBoxLayout()
         scheduled_sync_layout.setAlignment(Qt.AlignLeft)
         scheduled_sync_layout.addLayout(self.add_checkbox('checkbox_enable_scheduled_sync'))
+        scheduled_sync_layout.addLayout(self.add_checkbox('checkbox_scheduled_sync_show_log'))
         scheduled_sync_layout.addWidget(QLabel('Scheduled Time:'))
         self.schedule_hour_input = QSpinBox()
         self.schedule_hour_input.setRange(0, 23)
@@ -784,10 +778,10 @@ class ConfigWidget(QWidget):
         additional_options_r2 = QHBoxLayout()
         additional_options_r2.addLayout(self.add_checkbox('checkbox_unlink_button'))
         layout.addLayout(additional_options_r2)
-        
+
         # Add option to change status texts
         layout.addWidget(create_separator())
-        layout.addWidget(QLabel('Set the status names for "Started", "Finished" (used for Audiobook Status. Case sensitive):'))
+        layout.addWidget(QLabel('Audiobook Status: Set the status names for "Started" & "Finished" (Case sensitive)'))
         status_texts_layout = QHBoxLayout()
         status_texts_layout.setAlignment(Qt.AlignLeft)
         self.status_texts_started = QLineEdit(self)
