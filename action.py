@@ -83,6 +83,14 @@ class AudiobookshelfAction(InterfaceAction):
             triggered=self.sync_audible_rating,
             description='Update Audible Ratings Data from Audible API'
         )
+        self.create_menu_action(
+            menu,
+            'Get Audiobookshelf Covers',
+            'Get Audiobookshelf Covers',
+            icon='beautify.png',
+            triggered=self.get_abs_covers,
+            description='Compare and update covers from Audiobookshelf for selected books'
+        )
         menu.addSeparator()
         self.create_menu_action(
             menu,
@@ -736,6 +744,135 @@ class AudiobookshelfAction(InterfaceAction):
         self.audibleSyncWorker.finished_signal.connect(on_finished)
         self.audibleSyncWorker.start()
 
+    def get_abs_covers(self):
+        db = self.gui.current_db.new_api
+        server_url = CONFIG.get('abs_url', 'http://localhost:13378')
+        api_key = CONFIG.get('abs_key', '')
+        if not api_key:
+            show_error(self.gui, "Configuration Error", "API Key not set in configuration.")
+            return
+
+        selected_ids = self.gui.library_view.get_selected_ids()
+        if not selected_ids:
+            show_info(self.gui, "No Selection", "No books selected.")
+            return
+
+        def fetch_cover_bytes(abs_id: str) -> bytes:
+            # raw cover endpoint returns image (not JSON), so use urlopen directly, not api_request
+            from urllib.request import Request, urlopen
+            from urllib.error import URLError, HTTPError
+            req = Request(f"{server_url}/api/items/{abs_id}/cover",
+                        headers={'Authorization': f'Bearer {api_key}', 'User-Agent': f'CalibreAudiobookshelfSync/{self.version}'})
+            try:
+                with urlopen(req, timeout=10) as r:
+                    return r.read()
+            except (HTTPError, URLError):
+                return b""
+
+        def sha1(data: bytes) -> str:
+            import hashlib
+            return hashlib.sha1(data).hexdigest() if data else ""
+
+        rows = []
+        updatable = []  # parallel to rows, holds (book_id, server_bytes)
+        for book_id in selected_ids:
+            mi = db.get_metadata(book_id)
+            ids = mi.get('identifiers', {}) or {}
+            abs_id = ids.get('audiobookshelf_id') or ids.get('audiobookshelf') or ids.get('audiobookshelfId')
+            if not abs_id:
+                continue  # skip items without ABS id
+
+            # current calibre cover (bytes)
+            current_bytes = b""
+            try:
+                # db.cover returns a path in older APIs; if so, read it
+                path_or_data = db.cover(book_id)
+                if isinstance(path_or_data, (bytes, bytearray)):
+                    current_bytes = bytes(path_or_data)
+                elif path_or_data:
+                    try:
+                        with open(path_or_data, 'rb') as fh:
+                            current_bytes = fh.read()
+                    except Exception:
+                        current_bytes = b""
+            except Exception:
+                current_bytes = b""
+
+            server_bytes = fetch_cover_bytes(abs_id)
+            if not server_bytes:
+                continue
+
+            # skip if identical
+            if sha1(current_bytes) == sha1(server_bytes):
+                continue
+
+            # build pixmaps
+            current_pm = QPixmap()
+            server_pm = QPixmap()
+            current_pm.loadFromData(current_bytes) if current_bytes else None
+            server_pm.loadFromData(server_bytes)
+
+            rows.append({
+                'Add?': True,
+                'title': mi.get('title', ''),
+                'Current Cover': current_pm if not current_pm.isNull() else QPixmap(),
+                'Server Cover': server_pm
+            })
+            updatable.append((book_id, server_bytes))
+
+        if not rows:
+            show_info(self.gui, "Covers", "Nothing to update (no ABS IDs, no server covers, or covers already match).")
+            return
+
+        msg = ("Check the items whose covers you want to update.\n"
+            "Only books with an Audiobookshelf ID are shown; identical covers are hidden.")
+        dlg = SyncCompletionDialog(self.gui, "Get Audiobookshelf Covers", msg, rows, resultsColWidth=0, type="info")
+        table = dlg.table_area.findChild(QTableWidget)
+        table.setSortingEnabled(False)
+        headers = [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())]
+        try:
+            title_col = headers.index('title')
+            cur_col = headers.index('Current Cover')
+            srv_col = headers.index('Server Cover')
+            table.hideColumn(title_col)
+            table.setColumnWidth(cur_col, 320)
+            table.setColumnWidth(srv_col, 320)
+        except ValueError:
+            pass
+        table.resizeRowsToContents()
+
+        if dlg.exec_() and hasattr(dlg, 'checked_rows') and dlg.checked_rows:
+            updated_ids = []
+            for row_idx in dlg.checked_rows:
+                book_id, server_bytes = updatable[row_idx]
+                # db.set_cover accepts bytes in newer APIs; fall back to temp-file if needed
+                try:
+                    db.set_cover({book_id: server_bytes})
+                except Exception:
+                    import tempfile, os
+                    fd, tmp = tempfile.mkstemp(suffix='.jpg'); os.close(fd)
+                    try:
+                        with open(tmp, 'wb') as f: f.write(server_bytes)
+                        with open(tmp, 'rb') as f: db.set_cover({book_id: f})
+                    finally:
+                        try: os.remove(tmp)
+                        except Exception: pass
+                updated_ids.append(book_id)
+
+            # minimal refresh so covers pop immediately
+            if updated_ids:
+                self.gui.library_view.model().refresh()
+                self.gui.library_view.select_rows(updated_ids) # highlight what changed
+
+            SyncCompletionDialog(
+                self.gui,
+                "Cover Update Complete",
+                f"Updated covers for {len(updated_ids)} book(s).",
+                [{'title': db.get_metadata(bid).get('title', ''), 'updated': 'OK'} for bid in updated_ids],
+                resultsColWidth=0,
+                type='good'
+            ).show()
+
     def quick_link_books(self):
         import difflib
 
@@ -1211,10 +1348,16 @@ class SyncCompletionDialog(QDialog):
                     table.setItem(row, col, item)
                 else: # All other headers
                     value = result.get(header, "")
-                    item = QTableWidgetItem(str(value))
-                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    item.setToolTip(str(value))
-                    table.setItem(row, col, item)
+                    if isinstance(value, QPixmap):
+                        lbl = QLabel()
+                        lbl.setAlignment(Qt.AlignCenter)
+                        lbl.setPixmap(value.scaledToWidth(300, Qt.SmoothTransformation))
+                        table.setCellWidget(row, col, lbl)
+                    else:
+                        item = QTableWidgetItem(str(value))
+                        item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                        item.setToolTip(str(value))
+                        table.setItem(row, col, item)
 
         # Set minimum width for each column
         if resultsColWidth == 0:
